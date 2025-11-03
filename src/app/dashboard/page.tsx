@@ -340,11 +340,11 @@ export default function DashboardPage() {
         };
 
         try {
-            // This is a placeholder. Replace with your actual API endpoint.
-            const response = await fetch('/api/verify-attendance', {
+            const response = await fetch('https://zpsexwlosrwlrelrrwls.supabase.co/functions/v1/verify-attendance', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpwc2V4d2xvc3J3bHJlbHJyd2xzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE3MzExNjEsImV4cCI6MjA3NzMwNzE2MX0.aR1tdJpvZ7hVS0zq493KbUom_KroL_eH29IgFLgwfIE',
                 },
                 body: JSON.stringify(payload),
             });
@@ -354,8 +354,6 @@ export default function DashboardPage() {
                 throw new Error(errorResult.message || 'Verification failed.');
             }
 
-            // const result = await response.json();
-            // console.log('Verification success:', result);
             setAppState("SENT");
 
         } catch (error: any) {
@@ -365,7 +363,6 @@ export default function DashboardPage() {
                 title: "Submission Failed",
                 description: error.message || "Could not send attendance data. Please try again.",
             });
-            // Go back to the scanned state on failure to allow retry
             setAppState("SCANNED"); 
         }
     };
@@ -436,5 +433,7 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
 
     
