@@ -1,11 +1,13 @@
 
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Fingerprint, QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed } from "lucide-react"
+import { Fingerprint, QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+
 
 type AppState = "VERIFYING" | "READY_TO_SCAN" | "SCANNING" | "SCANNED" | "SENDING" | "SENT"
 
@@ -55,23 +57,75 @@ const ReadyToScanComponent = ({ onScan }: { onScan: () => void }) => (
   </Card>
 )
 
-const ScanningComponent = () => (
-  <Card className="text-center shadow-lg">
-    <CardHeader>
-      <CardTitle className="font-headline">Scan QR Code</CardTitle>
-      <CardDescription>Point your camera at the teacher's screen.</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="aspect-square bg-muted rounded-lg w-full flex items-center justify-center overflow-hidden relative">
-        <div className="w-64 h-64 border-4 border-dashed border-primary/50 rounded-xl"></div>
-        <div className="absolute top-0 bottom-0 w-full h-full overflow-hidden">
-            <div className="h-full w-1 bg-primary/50 shadow-[0_0_15px_2px_hsl(var(--primary))] animate-scan absolute left-1/2 -translate-x-1/2"></div>
+const ScanningComponent = () => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const getCameraPermission = async () => {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Camera not supported by this browser.");
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        setHasCameraPermission(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera permissions in your browser settings to scan the QR code.',
+        });
+      }
+    };
+
+    getCameraPermission();
+
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    }
+  }, [toast]);
+
+  return (
+    <Card className="text-center shadow-lg">
+      <CardHeader>
+        <CardTitle className="font-headline">Scan QR Code</CardTitle>
+        <CardDescription>Point your camera at the teacher's screen.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="aspect-square bg-muted rounded-lg w-full flex items-center justify-center overflow-hidden relative">
+          <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+          {hasCameraPermission ? (
+            <>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-64 h-64 border-4 border-dashed border-primary/50 rounded-xl"></div>
+              </div>
+              <div className="absolute top-0 bottom-0 w-full h-full overflow-hidden">
+                  <div className="h-full w-1 bg-primary/50 shadow-[0_0_15px_2px_hsl(var(--primary))] animate-scan absolute left-1/2 -translate-x-1/2"></div>
+              </div>
+            </>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white p-4">
+                <VideoOff className="h-12 w-12 mb-4" />
+                <p className="font-semibold">Camera permission denied</p>
+                <p className="text-sm">Please enable camera access in your browser settings.</p>
+            </div>
+          )}
         </div>
-        <QrCode className="absolute h-16 w-16 text-primary/20" />
-      </div>
-    </CardContent>
-  </Card>
-)
+      </CardContent>
+    </Card>
+  )
+}
+
 
 const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { data: AttendanceData, onSend: () => void, onCancel: () => void, sending?: boolean, onGetLocation: () => void }) => (
   <Card className="shadow-lg">
@@ -101,6 +155,14 @@ const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { 
           <span>{data.timestamp.toLocaleString()}</span>
         </div>
       </div>
+       {data.location.latitude === 0 && (
+         <Alert variant="destructive">
+            <AlertTitle>Location Required</AlertTitle>
+            <AlertDescription>
+                Please provide your location before sending attendance.
+            </AlertDescription>
+         </Alert>
+       )}
     </CardContent>
     <CardFooter className="grid grid-cols-2 gap-4">
         <Button variant="outline" onClick={onCancel} disabled={sending}>Scan Again</Button>
@@ -147,6 +209,10 @@ export default function DashboardPage() {
                         },
                     };
                 });
+                toast({
+                  title: "Location Acquired",
+                  description: "Your location has been successfully recorded.",
+                })
             },
             (error) => {
                 console.error("Error getting location:", error);
@@ -182,7 +248,7 @@ export default function DashboardPage() {
             timestamp: new Date(),
           })
           setAppState("SCANNED")
-        }, 3000)
+        }, 5000) // Increased time to allow for scanning
         break
       case "SENDING":
         timer = setTimeout(() => setAppState("SENT"), 2000)
@@ -201,8 +267,8 @@ export default function DashboardPage() {
       case "VERIFYING": return <VerifyingComponent />
       case "READY_TO_SCAN": return <ReadyToScanComponent onScan={() => setAppState("SCANNING")} />
       case "SCANNING": return <ScanningComponent />
-      case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => setAppState("SENDING")} onCancel={() => setAppState('SCANNING')} onGetLocation={handleGetLocation} />
-      case "SENDING": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => {}} onCancel={() => {}} sending onGetLocation={handleGetLocation} />
+      case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => setAppState("SENDING")} onCancel={() => setAppState('READY_TO_SCAN')} onGetLocation={handleGetLocation} />
+      case "SENDING": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => {}} onCancel={() => {}} sending onGetLocation={() => {}} />
       case "SENT": return <SentComponent onDone={resetState} />
       default: return null
     }
