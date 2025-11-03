@@ -1,11 +1,10 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,6 +31,14 @@ function ForgotPasswordForm() {
   })
 
   async function handlePasswordResetSubmit(values: z.infer<typeof formSchema>) {
+    if (!auth) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Authentication service is not available. Please try again later.",
+      });
+      return;
+    }
     setIsLoading(true)
     try {
       await sendPasswordResetEmail(auth, values.email)
@@ -42,7 +49,6 @@ function ForgotPasswordForm() {
       if (authError.code === 'auth/user-not-found') {
           errorMessage = "No account found with this email address."
       } else if (authError.message) {
-          // Use the more specific error message from Firebase
           errorMessage = authError.message;
       }
       
@@ -58,7 +64,7 @@ function ForgotPasswordForm() {
 
   if (emailSent) {
     return (
-        <Card className="w-full max-w-sm shadow-2xl text-center border-none">
+        <Card className="w-full max-w-sm shadow-2xl border-none">
             <CardHeader>
                 <div className="flex justify-center mb-4">
                     <MailCheck className="h-16 w-16 text-green-500" />
@@ -133,15 +139,9 @@ function ForgotPasswordForm() {
 
 
 export default function ForgotPasswordPage() {
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
-        {isClient ? <ForgotPasswordForm /> : null}
+        <ForgotPasswordForm />
     </main>
   )
 }
