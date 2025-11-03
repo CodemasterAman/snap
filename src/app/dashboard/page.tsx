@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff, LogOut } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useAuth, useUser } from "@/firebase"
+import { signOut } from "firebase/auth"
 
 
 type AppState = "READY_TO_SCAN" | "SCANNING" | "SCANNED" | "SENDING" | "SENT"
@@ -24,10 +26,10 @@ type AttendanceData = {
   timestamp: Date
 }
 
-const ReadyToScanComponent = ({ onScan }: { onScan: () => void }) => (
+const ReadyToScanComponent = ({ onScan, userName }: { onScan: () => void, userName: string }) => (
   <Card className="text-center shadow-lg">
     <CardHeader>
-      <CardTitle className="font-headline text-primary">Welcome, Jane Doe</CardTitle>
+      <CardTitle className="font-headline text-primary">Welcome, {userName}</CardTitle>
       <CardDescription>REG-ID: B-TECH-23-12345</CardDescription>
     </CardHeader>
     <CardContent>
@@ -183,18 +185,50 @@ const SentComponent = ({ onDone }: { onDone: () => void }) => (
     </Card>
 )
 
+function DashboardSkeleton() {
+  return (
+    <div className="w-full max-w-md mx-auto">
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    </div>
+  );
+}
+
 
 export default function DashboardPage() {
   const [appState, setAppState] = useState<AppState>("READY_TO_SCAN")
   const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null)
   const { toast } = useToast()
   const router = useRouter()
+  const auth = useAuth()
+  const user = useUser()
+  const [userName, setUserName] = useState("Student");
 
-  const handleLogout = () => {
-    // Set a timestamp in localStorage to indicate when the user can log in again.
-    const tenMinutesFromNow = new Date().getTime() + 10 * 60 * 1000;
-    localStorage.setItem('logoutCooldownUntil', tenMinutesFromNow.toString());
-    router.push('/login');
+  useEffect(() => {
+    if (user === null) {
+      router.push("/login");
+    } else {
+       const name = user.displayName || user.email?.split('@')[0] || "Student";
+       setUserName(name);
+    }
+  }, [user, router]);
+
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // Set a timestamp in localStorage to indicate when the user can log in again.
+      const tenMinutesFromNow = new Date().getTime() + 10 * 60 * 1000;
+      localStorage.setItem('logoutCooldownUntil', tenMinutesFromNow.toString());
+      router.push('/login');
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Logout Failed",
+        description: "An error occurred during logout. Please try again.",
+      });
+    }
   };
 
 
@@ -238,33 +272,36 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let timer: NodeJS.Timeout
-    switch (appState) {
-      case "SCANNING":
+    if (appState === "SCANNING") {
         timer = setTimeout(() => {
-          setAttendanceData({
-            name: "Jane Doe",
-            regNumber: "B-TECH-23-12345",
-            location: { latitude: 0, longitude: 0 },
-            timestamp: new Date(),
-          })
-          setAppState("SCANNED")
-        }, 5000) // Increased time to allow for scanning
-        break
-      case "SENDING":
-        timer = setTimeout(() => setAppState("SENT"), 2000)
-        break
+          if (user) {
+            setAttendanceData({
+              name: user.displayName || user.email || "Student",
+              regNumber: "B-TECH-23-12345",
+              location: { latitude: 0, longitude: 0 },
+              timestamp: new Date(),
+            })
+            setAppState("SCANNED")
+          }
+        }, 5000)
+    } else if (appState === "SENDING") {
+      timer = setTimeout(() => setAppState("SENT"), 2000)
     }
     return () => clearTimeout(timer)
-  }, [appState])
+  }, [appState, user])
 
   const resetState = () => {
     setAttendanceData(null)
     setAppState("READY_TO_SCAN")
   }
+  
+  if (!user) {
+    return <DashboardSkeleton />;
+  }
 
   const renderContent = () => {
     switch (appState) {
-      case "READY_TO_SCAN": return <ReadyToScanComponent onScan={() => setAppState("SCANNING")} />
+      case "READY_TO_SCAN": return <ReadyToScanComponent onScan={() => setAppState("SCANNING")} userName={userName} />
       case "SCANNING": return <ScanningComponent />
       case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => setAppState("SENDING")} onCancel={() => setAppState('READY_TO_SCAN')} onGetLocation={handleGetLocation} />
       case "SENDING": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => {}} onCancel={() => {}} sending onGetLocation={() => {}} />
