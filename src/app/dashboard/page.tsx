@@ -154,6 +154,7 @@ const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { 
   const [formattedTimestamp, setFormattedTimestamp] = useState<string | null>(null);
 
   useEffect(() => {
+    // This now only runs on the client, avoiding the mismatch.
     setFormattedTimestamp(new Date(data.timestamp).toLocaleString());
   }, [data.timestamp]);
 
