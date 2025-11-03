@@ -2,9 +2,10 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff } from "lucide-react"
+import { QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff, LogOut } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
@@ -187,6 +188,15 @@ export default function DashboardPage() {
   const [appState, setAppState] = useState<AppState>("READY_TO_SCAN")
   const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null)
   const { toast } = useToast()
+  const router = useRouter()
+
+  const handleLogout = () => {
+    // Set a timestamp in localStorage to indicate when the user can log in again.
+    const tenMinutesFromNow = new Date().getTime() + 10 * 60 * 1000;
+    localStorage.setItem('logoutCooldownUntil', tenMinutesFromNow.toString());
+    router.push('/login');
+  };
+
 
   const handleGetLocation = () => {
     if (navigator.geolocation) {
@@ -265,7 +275,10 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md mx-auto">
+      <div className="w-full max-w-md mx-auto relative">
+        <Button variant="ghost" size="sm" className="absolute top-0 right-0 text-muted-foreground" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" /> Logout
+        </Button>
         <h1 className="text-4xl font-headline text-center mb-2 text-primary">SNAP</h1>
         <p className="text-center text-muted-foreground mb-8">Your daily check-in.</p>
         {renderContent()}
