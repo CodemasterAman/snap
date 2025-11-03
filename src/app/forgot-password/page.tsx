@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -20,7 +20,7 @@ const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
 })
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const { toast } = useToast()
@@ -58,8 +58,7 @@ export default function ForgotPasswordPage() {
 
   if (emailSent) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm shadow-2xl text-center">
+        <Card className="w-full max-w-sm shadow-2xl text-center border-none">
             <CardHeader>
                 <div className="flex justify-center mb-4">
                     <MailCheck className="h-16 w-16 text-green-500" />
@@ -83,13 +82,11 @@ export default function ForgotPasswordPage() {
                 </Button>
             </CardFooter>
         </Card>
-      </main>
     )
   }
-
+  
   return (
-    <main className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm shadow-2xl">
+    <Card className="w-full max-w-sm shadow-2xl border-none">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-headline text-primary">Forgot Password</CardTitle>
           <CardDescription>
@@ -131,6 +128,20 @@ export default function ForgotPasswordPage() {
           </Button>
         </CardFooter>
       </Card>
+  )
+}
+
+
+export default function ForgotPasswordPage() {
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+  return (
+    <main className="min-h-screen flex items-center justify-center p-4">
+        {isClient ? <ForgotPasswordForm /> : null}
     </main>
   )
 }

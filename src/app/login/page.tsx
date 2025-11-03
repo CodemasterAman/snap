@@ -159,6 +159,12 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-sm shadow-2xl">
@@ -167,7 +173,7 @@ export default function LoginPage() {
           <CardDescription>Your daily check-in.</CardDescription>
         </CardHeader>
         <CardContent>
-          <LoginForm />
+          {isClient ? <LoginForm /> : null}
         </CardContent>
         <CardFooter className="text-center text-xs text-muted-foreground justify-center">
           <p>Login with your official university credentials. New users are automatically registered.</p>
