@@ -14,7 +14,7 @@ import { User, ArrowLeft, Loader2, MailCheck } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useAuth } from "@/firebase"
-import { sendPasswordResetEmail } from "firebase/auth"
+import { sendPasswordResetEmail, AuthError } from "firebase/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -23,7 +23,6 @@ const formSchema = z.object({
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
-  const router = useRouter()
   const { toast } = useToast()
   const auth = useAuth()
 
@@ -38,10 +37,18 @@ export default function ForgotPasswordPage() {
       await sendPasswordResetEmail(auth, values.email)
       setEmailSent(true)
     } catch (error: any) {
+      const authError = error as AuthError;
+      let errorMessage = "Failed to send password reset email. Please try again."
+      if (authError.code === 'auth/user-not-found') {
+          errorMessage = "No account found with this email address."
+      } else if (authError.message) {
+          errorMessage = authError.message;
+      }
+      
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to send password reset email.",
+        description: errorMessage,
       })
     } finally {
       setIsLoading(false)

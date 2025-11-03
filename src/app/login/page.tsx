@@ -57,18 +57,17 @@ function LoginForm() {
       router.push('/dashboard');
     } catch (error) {
         const authError = error as AuthError;
-        if (authError.code === 'auth/user-not-found') {
-            // If user not found, create a new user (sign up)
+        if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-credential') {
+            // If user not found or invalid credentials for login, try to create a new user (sign up)
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
                 const user = userCredential.user;
-                // You can extract the name from the email or have a separate field for it.
-                const nameFromEmail = values.email.split('@')[0].split('.')[0];
-                const capitalizedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+                // Extract name from email, capitalize it, and update the user's profile
+                const nameFromEmail = values.email.split('@')[0].replace(/[^a-zA-Z]/g, ' ');
+                const capitalizedName = nameFromEmail.split(' ').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' ');
                 
                 await updateProfile(user, {
                   displayName: capitalizedName,
-                  // The phone number needs to be verified, so we can't set it directly here
                 });
 
                 toast({
@@ -79,21 +78,21 @@ function LoginForm() {
                 router.push('/dashboard');
             } catch (signUpError) {
                 const signUpAuthError = signUpError as AuthError;
-                toast({
-                    variant: "destructive",
-                    title: "Sign Up Failed",
-                    description: signUpAuthError.message || "An unexpected error occurred.",
-                });
+                 if (signUpAuthError.code === 'auth/email-already-in-use') {
+                    toast({
+                        variant: "destructive",
+                        title: "Login Failed",
+                        description: "Incorrect password. Please try again.",
+                    });
+                } else {
+                    toast({
+                        variant: "destructive",
+                        title: "Sign Up Failed",
+                        description: signUpAuthError.message || "An unexpected error occurred.",
+                    });
+                }
             }
-        } else if (authError.code === "auth/invalid-credential") {
-            toast({
-                variant: "destructive",
-                title: "Login Failed",
-                description: "Invalid email or password. Please try again.",
-            });
-        }
-        
-        else {
+        } else {
             // Handle other sign-in errors
             toast({
                 variant: "destructive",

@@ -215,7 +215,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user === null) {
       router.push("/login");
-    } else {
+    } else if (user) {
        const name = user.displayName || user.email?.split('@')[0] || "Student";
        setUserName(name);
     }
@@ -223,6 +223,7 @@ export default function DashboardPage() {
 
 
   const handleLogout = async () => {
+    if (!auth) return;
     try {
       await signOut(auth);
       const tenMinutesFromNow = new Date().getTime() + 10 * 60 * 1000;
