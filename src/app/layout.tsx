@@ -4,7 +4,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'VeriPresence',
+  title: 'Snap',
   description: 'Your daily check-in.',
 };
 
@@ -30,3 +30,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    

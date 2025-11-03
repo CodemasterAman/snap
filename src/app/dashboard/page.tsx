@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff, LogOut, Phone } from "lucide-react"
+import { QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff, LogOut, Phone, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth, useUser } from "@/firebase"
@@ -427,10 +427,12 @@ export default function DashboardPage() {
         <Button variant="ghost" size="sm" className="absolute top-0 right-0 text-muted-foreground" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" /> Logout
         </Button>
-        <h1 className="text-4xl font-headline text-center mb-2 text-primary">VeriPresence</h1>
+        <h1 className="text-4xl font-headline text-center mb-2 text-primary">Snap</h1>
         <p className="text-center text-muted-foreground mb-8">Your daily check-in.</p>
         {renderContent()}
       </div>
     </main>
   )
 }
+
+    
