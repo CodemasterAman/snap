@@ -4,14 +4,20 @@
 import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Fingerprint, QrCode, MapPin, Clock, Send, CheckCircle, Loader2 } from "lucide-react"
+import { Fingerprint, QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 type AppState = "VERIFYING" | "READY_TO_SCAN" | "SCANNING" | "SCANNED" | "SENDING" | "SENT"
+
+type LocationData = {
+  latitude: number;
+  longitude: number;
+}
 
 type AttendanceData = {
   name: string
   regNumber: string
-  location: string
+  location: LocationData
   timestamp: Date
 }
 
@@ -67,7 +73,7 @@ const ScanningComponent = () => (
   </Card>
 )
 
-const ScannedComponent = ({ data, onSend, onCancel, sending }: { data: AttendanceData, onSend: () => void, onCancel: () => void, sending?: boolean }) => (
+const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { data: AttendanceData, onSend: () => void, onCancel: () => void, sending?: boolean, onGetLocation: () => void }) => (
   <Card className="shadow-lg">
     <CardHeader>
       <CardTitle className="font-headline text-green-500">Scan Successful</CardTitle>
@@ -77,9 +83,18 @@ const ScannedComponent = ({ data, onSend, onCancel, sending }: { data: Attendanc
       <div className="p-4 bg-muted/50 rounded-lg space-y-3">
         <p className="font-semibold text-lg">{data.name}</p>
         <p className="text-sm text-muted-foreground">{data.regNumber}</p>
-        <div className="flex items-center text-sm">
-          <MapPin className="h-4 w-4 mr-2 text-primary" />
-          <span>{data.location}</span>
+        <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center">
+                <MapPin className="h-4 w-4 mr-2 text-primary" />
+                {data.location.latitude !== 0 ? (
+                    <span>{data.location.latitude.toFixed(4)}, {data.location.longitude.toFixed(4)}</span>
+                ) : (
+                    <span className="text-muted-foreground">Location not set</span>
+                )}
+            </div>
+            <Button variant="ghost" size="sm" onClick={onGetLocation}>
+                <LocateFixed className="mr-2 h-4 w-4"/> Get Location
+            </Button>
         </div>
         <div className="flex items-center text-sm">
           <Clock className="h-4 w-4 mr-2 text-primary" />
@@ -89,7 +104,7 @@ const ScannedComponent = ({ data, onSend, onCancel, sending }: { data: Attendanc
     </CardContent>
     <CardFooter className="grid grid-cols-2 gap-4">
         <Button variant="outline" onClick={onCancel} disabled={sending}>Scan Again</Button>
-        <Button onClick={onSend} disabled={sending}>
+        <Button onClick={onSend} disabled={sending || data.location.latitude === 0}>
             {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
             {sending ? 'Sending...' : 'Send Attendance'}
         </Button>
@@ -116,6 +131,41 @@ const SentComponent = ({ onDone }: { onDone: () => void }) => (
 export default function DashboardPage() {
   const [appState, setAppState] = useState<AppState>("VERIFYING")
   const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null)
+  const { toast } = useToast()
+
+  const handleGetLocation = () => {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setAttendanceData((prevData) => {
+                    if (!prevData) return null;
+                    return {
+                        ...prevData,
+                        location: {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                        },
+                    };
+                });
+            },
+            (error) => {
+                console.error("Error getting location:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Location Error",
+                    description: "Could not retrieve your location. Please enable location services.",
+                });
+            }
+        );
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Location Error",
+            description: "Geolocation is not supported by your browser.",
+        });
+    }
+  };
+
 
   useEffect(() => {
     let timer: NodeJS.Timeout
@@ -128,7 +178,7 @@ export default function DashboardPage() {
           setAttendanceData({
             name: "Jane Doe",
             regNumber: "B-TECH-23-12345",
-            location: "Main Campus, Hall-03",
+            location: { latitude: 0, longitude: 0 },
             timestamp: new Date(),
           })
           setAppState("SCANNED")
@@ -151,8 +201,8 @@ export default function DashboardPage() {
       case "VERIFYING": return <VerifyingComponent />
       case "READY_TO_SCAN": return <ReadyToScanComponent onScan={() => setAppState("SCANNING")} />
       case "SCANNING": return <ScanningComponent />
-      case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => setAppState("SENDING")} onCancel={() => setAppState('SCANNING')} />
-      case "SENDING": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => {}} onCancel={() => {}} sending />
+      case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => setAppState("SENDING")} onCancel={() => setAppState('SCANNING')} onGetLocation={handleGetLocation} />
+      case "SENDING": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => {}} onCancel={() => {}} sending onGetLocation={handleGetLocation} />
       case "SENT": return <SentComponent onDone={resetState} />
       default: return null
     }
