@@ -4,7 +4,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'SNAP',
+  title: 'VeriPresence',
   description: 'Your daily check-in.',
 };
 

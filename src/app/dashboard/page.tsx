@@ -434,7 +434,7 @@ export default function DashboardPage() {
         <Button variant="ghost" size="sm" className="absolute top-0 right-0 text-muted-foreground" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" /> Logout
         </Button>
-        <h1 className="text-4xl font-headline text-center mb-2 text-primary">SNAP</h1>
+        <h1 className="text-4xl font-headline text-center mb-2 text-primary">VeriPresence</h1>
         <p className="text-center text-muted-foreground mb-8">Your daily check-in.</p>
         {renderContent()}
       </div>
