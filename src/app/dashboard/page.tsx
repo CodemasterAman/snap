@@ -272,7 +272,7 @@ export default function DashboardPage() {
     if (user === null) {
       router.push("/login");
     } else if (user) {
-       const name = user.displayName || user.email?.split('@')[0] || "Student";
+       const name = user.displayName || "Student";
        setUserName(name);
        
        if (user.email) {
