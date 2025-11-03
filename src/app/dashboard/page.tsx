@@ -348,11 +348,10 @@ export default function DashboardPage() {
         };
 
         try {
-            const response = await fetch('https://zpsexwlosrwlrelrrwls.supabase.co/functions/v1/verify-attendance', {
+            const response = await fetch('/api/verify-attendance', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpwc2V4d2xvc3J3bHJlbHJyd2xzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE3MzExNjEsImV4cCI6MjA3NzMwNzE2MX0.aR1tdJpvZ7hVS0zq493KbUom_KroL_eH29IgFLgwfIE',
                 },
                 body: JSON.stringify(payload),
             });
