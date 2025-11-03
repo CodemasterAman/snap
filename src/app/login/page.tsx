@@ -148,7 +148,7 @@ function LoginForm() {
               )}
             />
         </div>
-        <Button type="submit" className="w-full" disabled={isLoading}>
+        <Button type="submit" className="w-full" disabled={isLoading} suppressHydrationWarning>
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
           {isLoading ? 'Please wait...' : 'Login or Sign Up'}
         </Button>
