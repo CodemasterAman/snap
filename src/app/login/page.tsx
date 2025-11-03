@@ -63,8 +63,8 @@ function LoginForm() {
                 const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
                 const user = userCredential.user;
                 // Extract name from email, capitalize it, and update the user's profile
-                const nameFromEmail = values.email.split('@')[0].replace(/[^a-zA-Z]/g, ' ');
-                const capitalizedName = nameFromEmail.split(' ').map(n => n.charAt(0).toUpperCase() + n.slice(1)).join(' ');
+                const nameFromEmail = values.email.split('@')[0].split('.')[0];
+                const capitalizedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
                 
                 await updateProfile(user, {
                   displayName: capitalizedName,
