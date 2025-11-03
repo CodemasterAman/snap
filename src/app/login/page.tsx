@@ -14,7 +14,7 @@ import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useAuth } from "@/firebase"
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, AuthError } from "firebase/auth"
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, AuthError, updateProfile } from "firebase/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -60,7 +60,17 @@ function LoginForm() {
         if (authError.code === 'auth/user-not-found') {
             // If user not found, create a new user (sign up)
             try {
-                await createUserWithEmailAndPassword(auth, values.email, values.password);
+                const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+                const user = userCredential.user;
+                // You can extract the name from the email or have a separate field for it.
+                const nameFromEmail = values.email.split('@')[0].split('.')[0];
+                const capitalizedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+                
+                await updateProfile(user, {
+                  displayName: capitalizedName,
+                  // The phone number needs to be verified, so we can't set it directly here
+                });
+
                 toast({
                     title: "Account Created",
                     description: "Welcome! Your account has been successfully created.",
@@ -75,12 +85,20 @@ function LoginForm() {
                     description: signUpAuthError.message || "An unexpected error occurred.",
                 });
             }
-        } else {
+        } else if (authError.code === "auth/invalid-credential") {
+            toast({
+                variant: "destructive",
+                title: "Login Failed",
+                description: "Invalid email or password. Please try again.",
+            });
+        }
+        
+        else {
             // Handle other sign-in errors
             toast({
                 variant: "destructive",
                 title: "Login Failed",
-                description: authError.message || "Invalid credentials. Please try again.",
+                description: authError.message || "An unexpected error occurred. Please try again.",
             });
         }
     } finally {
