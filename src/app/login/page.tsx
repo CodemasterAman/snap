@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { LogIn, User, Lock, Loader2 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useAuth } from "@/firebase"
@@ -176,5 +176,3 @@ export default function LoginPage() {
     </main>
   )
 }
-
-    
