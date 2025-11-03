@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { LogIn, User, Lock } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 const formSchema = z.object({
   studentId: z.string().min(1, { message: "Student ID is required." }),
@@ -91,8 +92,10 @@ function LoginForm() {
           Login & Verify
         </Button>
         <div className="text-center">
-             <Button type="button" variant="link" size="sm" className="text-muted-foreground font-normal px-0 h-auto py-0">
-                Forgot Password?
+             <Button type="button" variant="link" size="sm" className="text-muted-foreground font-normal px-0 h-auto py-0" asChild>
+                <Link href="/forgot-password">
+                    Forgot Password?
+                </Link>
             </Button>
         </div>
       </form>
@@ -116,7 +119,7 @@ export default function LoginPage() {
           <CardDescription>Your daily check-in.</CardDescription>
         </CardHeader>
         <CardContent>
-          {isClient ? <LoginForm /> : null}
+          {isClient ? <LoginForm /> : <div className="h-[258px]"></div>}
         </CardContent>
         <CardFooter className="text-center text-xs text-muted-foreground justify-center">
           <p>Login with your official university credentials.</p>
