@@ -34,11 +34,11 @@ type AttendanceData = {
   qrPayload: QrPayload
 }
 
-const ReadyToScanComponent = ({ onScan, userName }: { onScan: () => void, userName: string }) => (
+const ReadyToScanComponent = ({ onScan, userName, regNumber }: { onScan: () => void, userName: string, regNumber: string }) => (
   <Card className="text-center shadow-lg">
     <CardHeader>
       <CardTitle className="font-headline text-primary">Welcome, {userName}</CardTitle>
-      <CardDescription>REG-ID: B-TECH-23-12345</CardDescription>
+      <CardDescription>REG-ID: {regNumber}</CardDescription>
     </CardHeader>
     <CardContent>
       <p className="text-muted-foreground mb-6">Ready to mark your presence?</p>
@@ -262,6 +262,7 @@ export default function DashboardPage() {
   const auth = useAuth()
   const user = useUser()
   const [userName, setUserName] = useState("Student");
+  const [regNumber, setRegNumber] = useState("");
 
   useEffect(() => {
     if (user === null) {
@@ -269,6 +270,13 @@ export default function DashboardPage() {
     } else if (user) {
        const name = user.displayName || user.email?.split('@')[0] || "Student";
        setUserName(name);
+       
+       if (user.email) {
+         const match = user.email.match(/\.([a-zA-Z0-9]+)@/);
+         if (match && match[1]) {
+           setRegNumber(match[1].toUpperCase());
+         }
+       }
     }
   }, [user, router]);
 
@@ -376,8 +384,8 @@ export default function DashboardPage() {
                 throw new Error("QR code is missing 'qrId' or 'sessionId'.");
             }
             setAttendanceData({
-              name: user.displayName || user.email || "Student",
-              regNumber: "B-TECH-23-12345",
+              name: userName,
+              regNumber: regNumber,
               phoneNumber: user.phoneNumber,
               location: { latitude: 0, longitude: 0 },
               timestamp: new Date(),
@@ -411,7 +419,7 @@ export default function DashboardPage() {
 
   const renderContent = () => {
     switch (appState) {
-      case "READY_TO_SCAN": return <ReadyToScanComponent onScan={() => setAppState("SCANNING")} userName={userName} />
+      case "READY_TO_SCAN": return <ReadyToScanComponent onScan={() => setAppState("SCANNING")} userName={userName} regNumber={regNumber} />
       case "SCANNING": return <ScanningComponent onScanSuccess={handleScanSuccess} onScanError={handleScanError} />
       case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={handleSendAttendance} onCancel={resetState} onGetLocation={handleGetLocation} />
       case "SENDING": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => {}} onCancel={() => {}} sending onGetLocation={() => {}} />
@@ -433,7 +441,3 @@ export default function DashboardPage() {
     </main>
   )
 }
-
-    
-
-    
