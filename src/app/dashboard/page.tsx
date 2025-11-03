@@ -127,7 +127,14 @@ const ScanningComponent = () => {
 }
 
 
-const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { data: AttendanceData, onSend: () => void, onCancel: () => void, sending?: boolean, onGetLocation: () => void }) => (
+const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { data: AttendanceData, onSend: () => void, onCancel: () => void, sending?: boolean, onGetLocation: () => void }) => {
+  const [formattedTimestamp, setFormattedTimestamp] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFormattedTimestamp(data.timestamp.toLocaleString());
+  }, [data.timestamp]);
+
+  return (
   <Card className="shadow-lg">
     <CardHeader>
       <CardTitle className="font-headline text-green-500">Scan Successful</CardTitle>
@@ -152,7 +159,7 @@ const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { 
         </div>
         <div className="flex items-center text-sm">
           <Clock className="h-4 w-4 mr-2 text-primary" />
-          <span>{data.timestamp.toLocaleString()}</span>
+          <span>{formattedTimestamp || 'Loading...'}</span>
         </div>
       </div>
        {data.location.latitude === 0 && (
@@ -172,7 +179,8 @@ const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { 
         </Button>
     </CardFooter>
   </Card>
-)
+  )
+}
 
 const SentComponent = ({ onDone }: { onDone: () => void }) => (
     <Card className="text-center shadow-lg">
