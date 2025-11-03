@@ -42,6 +42,7 @@ export default function ForgotPasswordPage() {
       if (authError.code === 'auth/user-not-found') {
           errorMessage = "No account found with this email address."
       } else if (authError.message) {
+          // Use the more specific error message from Firebase
           errorMessage = authError.message;
       }
       
