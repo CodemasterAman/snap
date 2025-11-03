@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff, LogOut } from "lucide-react"
+import { QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff, LogOut, Phone } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth, useUser } from "@/firebase"
@@ -22,6 +22,7 @@ type LocationData = {
 type AttendanceData = {
   name: string
   regNumber: string
+  phoneNumber: string | null
   location: LocationData
   timestamp: Date
 }
@@ -119,7 +120,7 @@ const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { 
   const [formattedTimestamp, setFormattedTimestamp] = useState<string | null>(null);
 
   useEffect(() => {
-    setFormattedTimestamp(data.timestamp.toLocaleString());
+    setFormattedTimestamp(new Date(data.timestamp).toLocaleString());
   }, [data.timestamp]);
 
   return (
@@ -132,6 +133,12 @@ const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { 
       <div className="p-4 bg-muted/50 rounded-lg space-y-3">
         <p className="font-semibold text-lg">{data.name}</p>
         <p className="text-sm text-muted-foreground">{data.regNumber}</p>
+        {data.phoneNumber && (
+            <div className="flex items-center text-sm">
+                <Phone className="h-4 w-4 mr-2 text-primary" />
+                <span>{data.phoneNumber}</span>
+            </div>
+        )}
         <div className="flex items-center justify-between text-sm">
             <div className="flex items-center">
                 <MapPin className="h-4 w-4 mr-2 text-primary" />
@@ -218,7 +225,6 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // Set a timestamp in localStorage to indicate when the user can log in again.
       const tenMinutesFromNow = new Date().getTime() + 10 * 60 * 1000;
       localStorage.setItem('logoutCooldownUntil', tenMinutesFromNow.toString());
       router.push('/login');
@@ -278,6 +284,7 @@ export default function DashboardPage() {
             setAttendanceData({
               name: user.displayName || user.email || "Student",
               regNumber: "B-TECH-23-12345",
+              phoneNumber: user.phoneNumber,
               location: { latitude: 0, longitude: 0 },
               timestamp: new Date(),
             })
