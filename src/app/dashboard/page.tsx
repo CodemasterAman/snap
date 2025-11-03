@@ -161,8 +161,8 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md mx-auto">
-        <h1 className="text-4xl font-headline text-center mb-2 text-primary">VeriPresence</h1>
-        <p className="text-center text-muted-foreground mb-8">Secure Student Attendance</p>
+        <h1 className="text-4xl font-headline text-center mb-2 text-primary">SNAP</h1>
+        <p className="text-center text-muted-foreground mb-8">Your daily check-in.</p>
         {renderContent()}
       </div>
     </main>

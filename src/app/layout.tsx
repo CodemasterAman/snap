@@ -3,8 +3,8 @@ import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'VeriPresence',
-  description: 'Student Attendance Verification',
+  title: 'SNAP',
+  description: 'Your daily check-in.',
 };
 
 export default function RootLayout({

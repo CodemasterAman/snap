@@ -36,8 +36,8 @@ export default function LoginPage() {
     <main className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-sm shadow-2xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-headline text-primary">VeriPresence</CardTitle>
-          <CardDescription>Secure Student Attendance</CardDescription>
+          <CardTitle className="text-3xl font-headline text-primary">SNAP</CardTitle>
+          <CardDescription>Your daily check-in.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
