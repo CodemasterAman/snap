@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth, useUser } from "@/firebase"
 import { signOut } from "firebase/auth"
 import jsQR from "jsqr"
+import { supabase } from "@/lib/supabaseClient"
 
 
 type AppState = "READY_TO_SCAN" | "SCANNING" | "SCANNED" | "SENDING" | "SENT"
@@ -77,13 +78,12 @@ const ScanningComponent = ({ onScanSuccess, onScanError }: { onScanSuccess: (dat
 
         if (code) {
           try {
-            // Attempt to parse the QR code data as JSON
             JSON.parse(code.data);
             onScanSuccess(code.data);
-            return; // Stop scanning on success
+            return;
           } catch (e) {
             onScanError("Invalid QR code format. Expected JSON.");
-            return; // Stop scanning on error
+            return;
           }
         }
       }
@@ -166,7 +166,6 @@ const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { 
   const [formattedTimestamp, setFormattedTimestamp] = useState<string | null>(null);
 
   useEffect(() => {
-    // This now only runs on the client, avoiding the mismatch.
     setFormattedTimestamp(new Date(data.timestamp).toLocaleString());
   }, [data.timestamp]);
 
@@ -228,14 +227,18 @@ const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { 
   )
 }
 
-const SentComponent = ({ onDone }: { onDone: () => void }) => (
+const SentComponent = ({ onDone, message, success }: { onDone: () => void, message: string, success: boolean }) => (
     <Card className="text-center shadow-lg">
         <CardHeader>
             <div className="flex justify-center mb-4">
-                <CheckCircle className="h-16 w-16 text-green-500" />
+                {success ? (
+                    <CheckCircle className="h-16 w-16 text-green-500" />
+                ) : (
+                    <AlertCircle className="h-16 w-16 text-destructive" />
+                )}
             </div>
-            <CardTitle className="font-headline">Attendance Marked!</CardTitle>
-            <CardDescription>Your presence has been successfully recorded.</CardDescription>
+            <CardTitle className="font-headline">{success ? 'Attendance Marked!' : 'Submission Failed'}</CardTitle>
+            <CardDescription>{message}</CardDescription>
         </CardHeader>
         <CardContent>
             <Button className="w-full" onClick={onDone}>Done</Button>
@@ -257,6 +260,7 @@ function DashboardSkeleton() {
 export default function DashboardPage() {
   const [appState, setAppState] = useState<AppState>("READY_TO_SCAN")
   const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null)
+  const [submissionResult, setSubmissionResult] = useState<{message: string, success: boolean} | null>(null)
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth()
@@ -333,46 +337,35 @@ export default function DashboardPage() {
     }
   };
   
-    const handleSendAttendance = async () => {
-        if (!attendanceData || !user) return;
-        setAppState("SENDING");
-    
-        const payload = {
-            p_session_id: attendanceData.qrPayload.sessionId,
-            p_student_name: attendanceData.name,
-            p_student_email: user.email,
-            p_student_phone: attendanceData.phoneNumber,
-            p_student_latitude: attendanceData.location.latitude,
-            p_student_longitude: attendanceData.location.longitude,
-            p_scan_timestamp: new Date().toISOString(),
-        };
+  const handleSendAttendance = async () => {
+    if (!attendanceData || !user) return;
+    setAppState("SENDING");
 
-        try {
-            const response = await fetch('/api/verify-attendance', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
+    try {
+      const { data, error } = await supabase.rpc('submit_attendance', {
+        p_qr_id: attendanceData.qrPayload.qrId,
+        p_session_id: attendanceData.qrPayload.sessionId,
+        p_student_name: attendanceData.name,
+        p_student_email: user.email,
+        p_student_phone: attendanceData.phoneNumber,
+        p_student_latitude: attendanceData.location.latitude,
+        p_student_longitude: attendanceData.location.longitude,
+        p_scan_timestamp: new Date().toISOString()
+      })
 
-            if (!response.ok) {
-                const errorResult = await response.json();
-                throw new Error(errorResult.message || 'Verification failed.');
-            }
+      if (error) {
+        throw new Error(error.message)
+      }
+      
+      setSubmissionResult({ message: data.message, success: data.success });
+      setAppState("SENT");
 
-            setAppState("SENT");
-
-        } catch (error: any) {
-            console.error("Error sending attendance:", error);
-            toast({
-                variant: "destructive",
-                title: "Submission Failed",
-                description: error.message || "Could not send attendance data. Please try again.",
-            });
-            setAppState("SCANNED"); 
-        }
-    };
+    } catch (err: any) {
+        console.error("Submission Error:", err);
+        setSubmissionResult({ message: err.message || "A network error occurred. Please try again.", success: false });
+        setAppState("SENT"); 
+    }
+  };
 
 
   const handleScanSuccess = (qrData: string) => {
@@ -409,6 +402,7 @@ export default function DashboardPage() {
 
   const resetState = () => {
     setAttendanceData(null)
+    setSubmissionResult(null)
     setAppState("READY_TO_SCAN")
   }
   
@@ -422,7 +416,7 @@ export default function DashboardPage() {
       case "SCANNING": return <ScanningComponent onScanSuccess={handleScanSuccess} onScanError={handleScanError} />
       case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={handleSendAttendance} onCancel={resetState} onGetLocation={handleGetLocation} />
       case "SENDING": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => {}} onCancel={() => {}} sending onGetLocation={() => {}} />
-      case "SENT": return <SentComponent onDone={resetState} />
+      case "SENT": return submissionResult && <SentComponent onDone={resetState} message={submissionResult.message} success={submissionResult.success}/>
       default: return null
     }
   }
