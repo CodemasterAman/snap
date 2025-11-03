@@ -4,12 +4,12 @@
 import React, { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Fingerprint, QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff } from "lucide-react"
+import { QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 
-type AppState = "VERIFYING" | "READY_TO_SCAN" | "SCANNING" | "SCANNED" | "SENDING" | "SENT"
+type AppState = "READY_TO_SCAN" | "SCANNING" | "SCANNED" | "SENDING" | "SENT"
 
 type LocationData = {
   latitude: number;
@@ -22,21 +22,6 @@ type AttendanceData = {
   location: LocationData
   timestamp: Date
 }
-
-const VerifyingComponent = () => (
-  <Card className="text-center animate-fade-in shadow-lg">
-    <CardHeader>
-      <div className="flex justify-center mb-4">
-        <Fingerprint className="h-16 w-16 text-primary animate-pulse" />
-      </div>
-      <CardTitle className="font-headline">Verification Required</CardTitle>
-      <CardDescription>Simulating on-device biometric check...</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <p className="text-sm text-muted-foreground">Please wait while we verify your identity.</p>
-    </CardContent>
-  </Card>
-)
 
 const ReadyToScanComponent = ({ onScan }: { onScan: () => void }) => (
   <Card className="text-center shadow-lg">
@@ -199,7 +184,7 @@ const SentComponent = ({ onDone }: { onDone: () => void }) => (
 
 
 export default function DashboardPage() {
-  const [appState, setAppState] = useState<AppState>("VERIFYING")
+  const [appState, setAppState] = useState<AppState>("READY_TO_SCAN")
   const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null)
   const { toast } = useToast()
 
@@ -244,9 +229,6 @@ export default function DashboardPage() {
   useEffect(() => {
     let timer: NodeJS.Timeout
     switch (appState) {
-      case "VERIFYING":
-        timer = setTimeout(() => setAppState("READY_TO_SCAN"), 3000)
-        break
       case "SCANNING":
         timer = setTimeout(() => {
           setAttendanceData({
@@ -272,7 +254,6 @@ export default function DashboardPage() {
 
   const renderContent = () => {
     switch (appState) {
-      case "VERIFYING": return <VerifyingComponent />
       case "READY_TO_SCAN": return <ReadyToScanComponent onScan={() => setAppState("SCANNING")} />
       case "SCANNING": return <ScanningComponent />
       case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => setAppState("SENDING")} onCancel={() => setAppState('READY_TO_SCAN')} onGetLocation={handleGetLocation} />
