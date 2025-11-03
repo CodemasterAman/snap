@@ -36,6 +36,15 @@ function LoginForm() {
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!auth) {
+        toast({
+            variant: "destructive",
+            title: "Authentication Error",
+            description: "Authentication service is not available. Please try again later.",
+        });
+        return;
+    }
+
     const cooldownUntil = localStorage.getItem('logoutCooldownUntil');
     const now = new Date().getTime();
 
@@ -51,18 +60,16 @@ function LoginForm() {
     
     setIsLoading(true);
     try {
-      // First, try to sign in
       await signInWithEmailAndPassword(auth, values.email, values.password);
       localStorage.removeItem('logoutCooldownUntil');
       router.push('/dashboard');
     } catch (error) {
         const authError = error as AuthError;
         if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-credential') {
-            // If user not found or invalid credentials for login, try to create a new user (sign up)
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
                 const user = userCredential.user;
-                // Extract name from email, capitalize it, and update the user's profile
+                
                 const nameFromEmail = values.email.split('@')[0].split('.')[0];
                 const capitalizedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
                 
@@ -88,12 +95,11 @@ function LoginForm() {
                     toast({
                         variant: "destructive",
                         title: "Sign Up Failed",
-                        description: signUpAuthError.message || "An unexpected error occurred.",
+                        description: signUpAuthError.message || "An unexpected error occurred during sign-up.",
                     });
                 }
             }
         } else {
-            // Handle other sign-in errors
             toast({
                 variant: "destructive",
                 title: "Login Failed",
