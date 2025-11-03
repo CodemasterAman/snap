@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth, useUser } from "@/firebase"
 import { signOut } from "firebase/auth"
+import jsQR from "jsqr"
 
 
 type AppState = "READY_TO_SCAN" | "SCANNING" | "SCANNED" | "SENDING" | "SENT"
@@ -25,6 +26,7 @@ type AttendanceData = {
   phoneNumber: string | null
   location: LocationData
   timestamp: Date
+  qrData?: string
 }
 
 const ReadyToScanComponent = ({ onScan, userName }: { onScan: () => void, userName: string }) => (
@@ -41,15 +43,41 @@ const ReadyToScanComponent = ({ onScan, userName }: { onScan: () => void, userNa
       </Button>
     </CardContent>
     <CardFooter className="justify-center text-xs text-muted-foreground">
-        <p>Ensure you scan the QR code within 5 seconds.</p>
+        <p>Ensure you have the class QR code ready.</p>
     </CardFooter>
   </Card>
 )
 
-const ScanningComponent = () => {
+const ScanningComponent = ({ onScanSuccess }: { onScanSuccess: (data: string) => void }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const { toast } = useToast();
+  const animationFrameId = useRef<number>();
+
+  const tick = useCallback(() => {
+    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+
+      if (ctx) {
+        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        });
+
+        if (code) {
+          onScanSuccess(code.data);
+          return; // Stop scanning
+        }
+      }
+    }
+    animationFrameId.current = requestAnimationFrame(tick);
+  }, [onScanSuccess]);
 
   useEffect(() => {
     const getCameraPermission = async () => {
@@ -62,6 +90,8 @@ const ScanningComponent = () => {
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.play();
+          animationFrameId.current = requestAnimationFrame(tick);
         }
       } catch (error) {
         console.error('Error accessing camera:', error);
@@ -77,12 +107,15 @@ const ScanningComponent = () => {
     getCameraPermission();
 
     return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
       }
     }
-  }, [toast]);
+  }, [toast, tick]);
 
   return (
     <Card className="text-center shadow-lg">
@@ -92,14 +125,15 @@ const ScanningComponent = () => {
       </CardHeader>
       <CardContent>
         <div className="aspect-square bg-muted rounded-lg w-full flex items-center justify-center overflow-hidden relative">
-          <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+          <video ref={videoRef} className="w-full h-full object-cover" playsInline />
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
           {hasCameraPermission ? (
             <>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-64 h-64 border-4 border-dashed border-primary/50 rounded-xl"></div>
               </div>
-              <div className="absolute top-0 bottom-0 w-full h-full overflow-hidden">
-                  <div className="h-full w-1 bg-primary/50 shadow-[0_0_15px_2px_hsl(var(--primary))] animate-scan absolute left-1/2 -translate-x-1/2"></div>
+              <div className="absolute top-0 bottom-0 w-full h-full overflow-hidden rounded-lg">
+                  <div className="h-full w-1.5 bg-primary/70 shadow-[0_0_20px_4px_hsl(var(--primary))] animate-scan absolute"></div>
               </div>
             </>
           ) : (
@@ -155,6 +189,10 @@ const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { 
         <div className="flex items-center text-sm">
           <Clock className="h-4 w-4 mr-2 text-primary" />
           <span>{formattedTimestamp || 'Loading...'}</span>
+        </div>
+         <div className="flex items-center text-sm pt-2 border-t border-border">
+          <QrCode className="h-4 w-4 mr-2 text-primary" />
+          <span className="font-mono text-xs truncate">QR: {data.qrData}</span>
         </div>
       </div>
        {data.location.latitude === 0 && (
@@ -279,24 +317,26 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let timer: NodeJS.Timeout
-    if (appState === "SCANNING") {
-        timer = setTimeout(() => {
-          if (user) {
-            setAttendanceData({
-              name: user.displayName || user.email || "Student",
-              regNumber: "B-TECH-23-12345",
-              phoneNumber: user.phoneNumber,
-              location: { latitude: 0, longitude: 0 },
-              timestamp: new Date(),
-            })
-            setAppState("SCANNED")
-          }
-        }, 5000)
-    } else if (appState === "SENDING") {
+    if (appState === "SENDING") {
       timer = setTimeout(() => setAppState("SENT"), 2000)
     }
     return () => clearTimeout(timer)
-  }, [appState, user])
+  }, [appState])
+
+  const handleScanSuccess = (qrData: string) => {
+     if (user) {
+        setAttendanceData({
+          name: user.displayName || user.email || "Student",
+          regNumber: "B-TECH-23-12345",
+          phoneNumber: user.phoneNumber,
+          location: { latitude: 0, longitude: 0 },
+          timestamp: new Date(),
+          qrData: qrData,
+        })
+        setAppState("SCANNED")
+     }
+  }
+
 
   const resetState = () => {
     setAttendanceData(null)
@@ -310,7 +350,7 @@ export default function DashboardPage() {
   const renderContent = () => {
     switch (appState) {
       case "READY_TO_SCAN": return <ReadyToScanComponent onScan={() => setAppState("SCANNING")} userName={userName} />
-      case "SCANNING": return <ScanningComponent />
+      case "SCANNING": return <ScanningComponent onScanSuccess={handleScanSuccess} />
       case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => setAppState("SENDING")} onCancel={() => setAppState('READY_TO_SCAN')} onGetLocation={handleGetLocation} />
       case "SENDING": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => {}} onCancel={() => {}} sending onGetLocation={() => {}} />
       case "SENT": return <SentComponent onDone={resetState} />
