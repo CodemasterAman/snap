@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { User, ArrowLeft, Loader2 } from "lucide-react"
+import { User, ArrowLeft, Loader2, MailCheck } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useAuth } from "@/firebase"
@@ -22,6 +22,7 @@ const formSchema = z.object({
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const auth = useAuth()
@@ -35,11 +36,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
     try {
       await sendPasswordResetEmail(auth, values.email)
-      toast({
-        title: "Password Reset Email Sent",
-        description: "Please check your inbox for instructions to reset your password.",
-      })
-      router.push("/login")
+      setEmailSent(true)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -49,6 +46,37 @@ export default function ForgotPasswordPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (emailSent) {
+    return (
+      <main className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-sm shadow-2xl text-center">
+            <CardHeader>
+                <div className="flex justify-center mb-4">
+                    <MailCheck className="h-16 w-16 text-green-500" />
+                </div>
+                <CardTitle className="text-3xl font-headline text-primary">Check Your Email</CardTitle>
+                <CardDescription>
+                A password reset link has been sent to the email address you provided.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-sm text-muted-foreground">
+                    Please follow the instructions in the email to reset your password.
+                </p>
+            </CardContent>
+            <CardFooter className="justify-center">
+                <Button type="button" variant="link" size="sm" className="text-muted-foreground font-normal px-0 h-auto py-0" asChild>
+                    <Link href="/login">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Login
+                    </Link>
+                </Button>
+            </CardFooter>
+        </Card>
+      </main>
+    )
   }
 
   return (
