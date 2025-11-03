@@ -20,13 +20,18 @@ type LocationData = {
   longitude: number;
 }
 
+type QrPayload = {
+    qrId: string;
+    sessionId: string;
+}
+
 type AttendanceData = {
   name: string
   regNumber: string
   phoneNumber: string | null
   location: LocationData
   timestamp: Date
-  qrData?: string
+  qrPayload: QrPayload
 }
 
 const ReadyToScanComponent = ({ onScan, userName }: { onScan: () => void, userName: string }) => (
@@ -48,7 +53,7 @@ const ReadyToScanComponent = ({ onScan, userName }: { onScan: () => void, userNa
   </Card>
 )
 
-const ScanningComponent = ({ onScanSuccess }: { onScanSuccess: (data: string) => void }) => {
+const ScanningComponent = ({ onScanSuccess, onScanError }: { onScanSuccess: (data: string) => void, onScanError: (message: string) => void }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
@@ -71,13 +76,20 @@ const ScanningComponent = ({ onScanSuccess }: { onScanSuccess: (data: string) =>
         });
 
         if (code) {
-          onScanSuccess(code.data);
-          return; // Stop scanning
+          try {
+            // Attempt to parse the QR code data as JSON
+            JSON.parse(code.data);
+            onScanSuccess(code.data);
+            return; // Stop scanning on success
+          } catch (e) {
+            onScanError("Invalid QR code format. Expected JSON.");
+            return; // Stop scanning on error
+          }
         }
       }
     }
     animationFrameId.current = requestAnimationFrame(tick);
-  }, [onScanSuccess]);
+  }, [onScanSuccess, onScanError]);
 
   useEffect(() => {
     const getCameraPermission = async () => {
@@ -193,7 +205,7 @@ const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { 
         </div>
          <div className="flex items-center text-sm pt-2 border-t border-border">
           <QrCode className="h-4 w-4 mr-2 text-primary" />
-          <span className="font-mono text-xs truncate">QR: {data.qrData}</span>
+          <span className="font-mono text-xs truncate">Session: {data.qrPayload.sessionId}</span>
         </div>
       </div>
        {data.location.latitude === 0 && (
@@ -265,8 +277,6 @@ export default function DashboardPage() {
     if (!auth) return;
     try {
       await signOut(auth);
-      const tenMinutesFromNow = new Date().getTime() + 10 * 60 * 1000;
-      localStorage.setItem('logoutCooldownUntil', tenMinutesFromNow.toString());
       router.push('/login');
     } catch (error) {
       toast({
@@ -314,28 +324,82 @@ export default function DashboardPage() {
         });
     }
   };
+  
+    const handleSendAttendance = async () => {
+        if (!attendanceData || !user) return;
+        setAppState("SENDING");
+    
+        const payload = {
+            p_session_id: attendanceData.qrPayload.sessionId,
+            p_student_name: attendanceData.name,
+            p_student_email: user.email,
+            p_student_phone: attendanceData.phoneNumber,
+            p_student_latitude: attendanceData.location.latitude,
+            p_student_longitude: attendanceData.location.longitude,
+            p_scan_timestamp: new Date().toISOString(),
+        };
 
+        try {
+            // This is a placeholder. Replace with your actual API endpoint.
+            const response = await fetch('/api/verify-attendance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout
-    if (appState === "SENDING") {
-      timer = setTimeout(() => setAppState("SENT"), 2000)
-    }
-    return () => clearTimeout(timer)
-  }, [appState])
+            if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.message || 'Verification failed.');
+            }
+
+            // const result = await response.json();
+            // console.log('Verification success:', result);
+            setAppState("SENT");
+
+        } catch (error: any) {
+            console.error("Error sending attendance:", error);
+            toast({
+                variant: "destructive",
+                title: "Submission Failed",
+                description: error.message || "Could not send attendance data. Please try again.",
+            });
+            // Go back to the scanned state on failure to allow retry
+            setAppState("SCANNED"); 
+        }
+    };
+
 
   const handleScanSuccess = (qrData: string) => {
      if (user) {
-        setAttendanceData({
-          name: user.displayName || user.email || "Student",
-          regNumber: "B-TECH-23-12345",
-          phoneNumber: user.phoneNumber,
-          location: { latitude: 0, longitude: 0 },
-          timestamp: new Date(),
-          qrData: qrData,
-        })
-        setAppState("SCANNED")
+        try {
+            const qrPayload: QrPayload = JSON.parse(qrData);
+            if (!qrPayload.qrId || !qrPayload.sessionId) {
+                throw new Error("QR code is missing 'qrId' or 'sessionId'.");
+            }
+            setAttendanceData({
+              name: user.displayName || user.email || "Student",
+              regNumber: "B-TECH-23-12345",
+              phoneNumber: user.phoneNumber,
+              location: { latitude: 0, longitude: 0 },
+              timestamp: new Date(),
+              qrPayload: qrPayload,
+            });
+            setAppState("SCANNED");
+        } catch (error: any) {
+            handleScanError(error.message || "Failed to parse QR code.");
+        }
      }
+  };
+
+  const handleScanError = (message: string) => {
+    toast({
+        variant: 'destructive',
+        title: 'QR Scan Error',
+        description: message,
+    });
+    resetState();
   }
 
 
@@ -351,8 +415,8 @@ export default function DashboardPage() {
   const renderContent = () => {
     switch (appState) {
       case "READY_TO_SCAN": return <ReadyToScanComponent onScan={() => setAppState("SCANNING")} userName={userName} />
-      case "SCANNING": return <ScanningComponent onScanSuccess={handleScanSuccess} />
-      case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => setAppState("SENDING")} onCancel={() => setAppState('READY_TO_SCAN')} onGetLocation={handleGetLocation} />
+      case "SCANNING": return <ScanningComponent onScanSuccess={handleScanSuccess} onScanError={handleScanError} />
+      case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={handleSendAttendance} onCancel={resetState} onGetLocation={handleGetLocation} />
       case "SENDING": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => {}} onCancel={() => {}} sending onGetLocation={() => {}} />
       case "SENT": return <SentComponent onDone={resetState} />
       default: return null
@@ -372,3 +436,5 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
