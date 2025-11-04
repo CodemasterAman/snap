@@ -64,6 +64,15 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const { toast } = useToast();
   const animationFrameId = useRef<number>();
+  
+  const onScanSuccessRef = useRef(onScanSuccess);
+  const onScanErrorRef = useRef(onScanError);
+
+  useEffect(() => {
+    onScanSuccessRef.current = onScanSuccess;
+    onScanErrorRef.current = onScanError;
+  }, [onScanSuccess, onScanError]);
+
 
   const tick = useCallback(() => {
     if (sending) return;
@@ -85,17 +94,17 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
         if (code) {
           try {
             JSON.parse(code.data);
-            onScanSuccess(code.data);
+            onScanSuccessRef.current(code.data);
             return;
           } catch (e) {
-            onScanError("Invalid QR code format. Expected JSON.");
+            onScanErrorRef.current("Invalid QR code format. Expected JSON.");
             return;
           }
         }
       }
     }
     animationFrameId.current = requestAnimationFrame(tick);
-  }, [onScanSuccess, onScanError, sending]);
+  }, [sending]);
 
   useEffect(() => {
     const getCameraPermission = async () => {
@@ -133,7 +142,8 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
         stream.getTracks().forEach(track => track.stop());
       }
     }
-  }, [toast, tick]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
 
   return (
     <Card className="text-center shadow-lg">
@@ -366,5 +376,3 @@ export default function DashboardPage() {
     </main>
   )
 }
-
-    
