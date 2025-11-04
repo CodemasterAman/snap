@@ -61,18 +61,18 @@ const ReadyToScanComponent = ({ onScan, userName, regNumber, gettingLocation }: 
 const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSuccess: (data: string) => void, onScanError: (message: string) => void, sending: boolean }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameId = useRef<number>();
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const { toast } = useToast();
-  const animationFrameId = useRef<number>();
 
   const tick = useCallback(() => {
-    if (sending) return;
-
-    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
+    if (sending || !videoRef.current || !canvasRef.current) return;
+  
+    if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
-
+  
       if (ctx) {
         canvas.height = video.videoHeight;
         canvas.width = video.videoWidth;
@@ -81,15 +81,15 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
         const code = jsQR(imageData.data, imageData.width, imageData.height, {
           inversionAttempts: "dontInvert",
         });
-
+  
         if (code) {
           try {
             JSON.parse(code.data);
             onScanSuccess(code.data);
-            return;
+            return; // Stop scanning on success
           } catch (e) {
             onScanError("Invalid QR code format. Expected JSON.");
-            return;
+            return; // Stop scanning on error
           }
         }
       }
@@ -99,6 +99,8 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
 
   useEffect(() => {
     let stream: MediaStream | null = null;
+    const videoElement = videoRef.current;
+
     const getCameraPermission = async () => {
       try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -107,15 +109,16 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         setHasCameraPermission(true);
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(e => {
-            console.error("Video play failed:", e);
-            if (e.name !== 'AbortError') {
-              onScanError("Could not start camera. Please check permissions.");
-            }
-          });
-          animationFrameId.current = requestAnimationFrame(tick);
+        if (videoElement) {
+          videoElement.srcObject = stream;
+          // Wait for the stream to be ready before playing
+          videoElement.onloadedmetadata = () => {
+            videoElement.play().catch(e => {
+              console.error("Video play failed:", e);
+              onScanError("Could not start camera.");
+            });
+            animationFrameId.current = requestAnimationFrame(tick);
+          };
         }
       } catch (error) {
         console.error('Error accessing camera:', error);
@@ -131,18 +134,20 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
     getCameraPermission();
 
     return () => {
+      // Cleanup function
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
+      if (videoElement) {
+        videoElement.srcObject = null;
+        videoElement.onloadedmetadata = null;
       }
-    }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [tick]);
 
   return (
     <Card className="text-center shadow-lg">
@@ -375,5 +380,3 @@ export default function DashboardPage() {
     </main>
   )
 }
-
-    
