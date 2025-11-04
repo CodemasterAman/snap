@@ -54,39 +54,43 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameId = useRef<number>();
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
-  const { toast } = useToast();
 
   const tick = useCallback(() => {
-    if (sending || !videoRef.current || !canvasRef.current) return;
-  
-    if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-  
-      if (ctx) {
-        canvas.height = video.videoHeight;
-        canvas.width = video.videoWidth;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: "dontInvert",
-        });
-  
-        if (code) {
-          try {
-            JSON.parse(code.data);
-            onScanSuccess(code.data);
-            return; // Stop scanning on success
-          } catch (e) {
-            onScanError("Invalid QR code format. Expected JSON.");
-            return; // Stop scanning on error
-          }
+    if (sending || !videoRef.current || !canvasRef.current || videoRef.current.readyState !== videoRef.current.HAVE_ENOUGH_DATA) {
+        if (!sending) {
+            animationFrameId.current = requestAnimationFrame(tick);
         }
-      }
+        return;
     }
+  
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "dontInvert",
+    });
+
+    if (code) {
+        try {
+        JSON.parse(code.data); // Validate JSON format
+        onScanSuccess(code.data);
+        return; // Stop scanning on success
+        } catch (e) {
+        onScanError("Invalid QR code format. Expected JSON.");
+        return; // Stop scanning on error
+        }
+    }
+    }
+    
     animationFrameId.current = requestAnimationFrame(tick);
   }, [sending, onScanSuccess, onScanError]);
+
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -102,13 +106,13 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
 
         if (videoElement) {
           videoElement.srcObject = stream;
-          // Wait for the stream to be ready before playing
+          // Use onloadedmetadata to ensure the stream is ready
           videoElement.onloadedmetadata = () => {
-            videoElement.play().catch(e => {
-              console.error("Video play failed:", e);
-              onScanError('Could not start camera. Please refresh the page and grant permission.');
-            });
-            animationFrameId.current = requestAnimationFrame(tick);
+             videoElement.play().catch(e => {
+                console.error("Video play failed:", e);
+                // Don't call onScanError here as it might create a loop
+             });
+             animationFrameId.current = requestAnimationFrame(tick);
           };
         }
       } catch (error) {
@@ -121,7 +125,6 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
     getCameraPermission();
 
     return () => {
-      // Cleanup function
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
@@ -129,12 +132,12 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
         stream.getTracks().forEach(track => track.stop());
       }
       if (videoElement) {
+        // Clean up video element properties
         videoElement.srcObject = null;
         videoElement.onloadedmetadata = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onScanError]);
+  }, [tick, onScanError]);
 
   return (
     <Card className="text-center shadow-lg">
@@ -173,6 +176,7 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
     </Card>
   )
 }
+
 
 const SentComponent = ({ onDone, message, success }: { onDone: () => void, message: string, success: boolean }) => (
     <Card className="text-center shadow-lg">
@@ -334,7 +338,8 @@ export default function DashboardPage() {
         p_latitude: location.latitude,
         p_longitude: location.longitude,
         p_scan_timestamp: new Date().toISOString()
-      })
+      });
+
 
       if (error) {
         throw new Error(error.message)
