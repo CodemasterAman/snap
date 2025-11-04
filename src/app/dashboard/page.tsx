@@ -5,9 +5,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { QrCode, MapPin, Send, CheckCircle, Loader2, LocateFixed, VideoOff, LogOut, AlertCircle, Phone } from "lucide-react"
+import { QrCode, Send, CheckCircle, Loader2, VideoOff, LogOut, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth, useUser } from "@/firebase"
 import { signOut } from "firebase/auth"
 import jsQR from "jsqr"
@@ -24,14 +23,6 @@ type LocationData = {
 type QrPayload = {
     qrId: string;
     sessionId: string;
-}
-
-type AttendanceData = {
-  name: string
-  regNumber: string
-  phoneNumber: string | null
-  scanTimestamp: Date
-  qrPayload: QrPayload
 }
 
 
@@ -229,10 +220,14 @@ export default function DashboardPage() {
   const [regNumber, setRegNumber] = useState("");
 
   useEffect(() => {
-    if (user === null) {
+    if (user === null) { // User is not loaded yet or not logged in
       router.push("/login");
-    } else if (user) {
-       const name = (user.displayName || "Student").split(' ')[0];
+    } else if (user) { // User is loaded
+       if (!user.displayName) { // New user, profile not complete
+           router.push('/complete-profile');
+           return;
+       }
+       const name = user.displayName ? user.displayName.split(' ')[0] : "Student";
        setUserName(name);
        
        if (user.email) {
@@ -295,7 +290,7 @@ export default function DashboardPage() {
   };
   
   const handleSendAttendance = async (qrData: string) => {
-    if (!location || !user) {
+    if (!location || !user || !user.email) {
         toast({ variant: 'destructive', title: 'Error', description: 'User or location data is missing.' });
         resetState();
         return;
@@ -312,9 +307,10 @@ export default function DashboardPage() {
       const { data, error } = await supabase.rpc('submit_attendance', {
         p_qr_id: qrPayload.qrId,
         p_session_id: qrPayload.sessionId,
+        p_student_id: user.uid,
         p_student_name: userName,
         p_student_email: user.email,
-        p_student_phone: user.phoneNumber,
+        p_student_phone: user.phoneNumber, // Note: phoneNumber is not available by default on user object
         p_student_latitude: location.latitude,
         p_student_longitude: location.longitude,
         p_scan_timestamp: new Date().toISOString()
@@ -349,7 +345,7 @@ export default function DashboardPage() {
     setAppState("READY_TO_SCAN")
   }
   
-  if (!user) {
+  if (!user || !user.displayName) {
     return <DashboardSkeleton />;
   }
 

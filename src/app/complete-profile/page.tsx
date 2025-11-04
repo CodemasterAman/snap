@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { User, Loader2, Phone, Fingerprint } from "lucide-react"
+import { User, Loader2, Phone } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useAuth, useUser } from "@/firebase"
 import { updateProfile } from "firebase/auth"
+import { supabase } from "@/lib/supabaseClient"
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "Please enter your full name." }),
@@ -26,6 +27,7 @@ function CompleteProfileForm() {
   const auth = useAuth()
   const user = useUser()
   const router = useRouter()
+  const [regNumber, setRegNumber] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -38,11 +40,21 @@ function CompleteProfileForm() {
   useEffect(() => {
     if (!user) {
       router.push("/login")
+    } else if (user) {
+        if (user.displayName) { // If profile is already complete, redirect to dashboard
+            router.push('/dashboard');
+        }
+        if (user.email) {
+            const match = user.email.match(/\.([a-zA-Z0-9]+)@/);
+            if (match && match[1]) {
+                setRegNumber(match[1].toUpperCase());
+            }
+        }
     }
   }, [user, router])
 
   async function handleProfileUpdate(values: z.infer<typeof formSchema>) {
-    if (!auth || !user) {
+    if (!auth || !user || !user.email) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -52,14 +64,27 @@ function CompleteProfileForm() {
     }
     setIsLoading(true)
     try {
+      // 1. Update Firebase Auth display name
       await updateProfile(user, {
         displayName: values.fullName,
-        // The ability to update phone number this way requires more complex Firebase setup
-        // For now we will just update the display name.
       });
 
-      // You can add logic here to save phone number and registration number to Firestore
-      // if you have a database set up.
+      // 2. Save details to Supabase database
+      const { error: supabaseError } = await supabase
+        .from('profiles')
+        .upsert({ 
+            id: user.uid, 
+            full_name: values.fullName,
+            phone_number: values.phoneNumber,
+            email: user.email,
+            registration_number: regNumber,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+
+      if (supabaseError) {
+        throw new Error(supabaseError.message);
+      }
+
 
       toast({
         title: "Profile Updated",
@@ -128,9 +153,13 @@ function CompleteProfileForm() {
                   </FormItem>
                 )}
               />
-              <p className="text-sm text-muted-foreground">
-                Registration number and Student ID are automatically detected from your email.
-              </p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>Your student details:</p>
+                <ul className="list-disc list-inside bg-muted/50 p-3 rounded-md border">
+                    <li><strong>Email:</strong> {user.email}</li>
+                    <li><strong>Registration No:</strong> {regNumber || "Detecting..."}</li>
+                </ul>
+              </div>
               
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
