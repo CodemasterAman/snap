@@ -187,7 +187,8 @@ function CompleteProfileForm() {
         displayName: values.fullName,
       });
 
-      // 2. Save details to Supabase database
+      // 2. Save details to Supabase database (Temporarily disabled to prevent crash)
+      /*
       const { error: supabaseError } = await supabase
         .from('students')
         .upsert({ 
@@ -195,13 +196,14 @@ function CompleteProfileForm() {
             full_name: values.fullName,
             phone_number: values.phoneNumber,
             email: user.email,
-            registration_number: regNumber, // Pass the detected reg number
+            registration_number: regNumber,
             updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
 
       if (supabaseError) {
         throw new Error(supabaseError.message);
       }
+      */
 
 
       toast({
@@ -298,7 +300,3 @@ export default function CompleteProfilePage() {
     </main>
   )
 }
-
-    
-
-    

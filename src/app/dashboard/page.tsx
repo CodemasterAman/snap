@@ -354,7 +354,9 @@ export default function DashboardPage() {
        setRegNumber(reg);
      }
     }
-
+    
+    // Temporarily disabled to prevent app crash
+    /*
     const fetchProfile = async () => {
         if (!user) return;
         const { data, error } = await supabase
@@ -370,6 +372,7 @@ export default function DashboardPage() {
         }
     };
     fetchProfile();
+    */
 
   }, [user, router]);
 
@@ -519,7 +522,3 @@ export default function DashboardPage() {
     </main>
   )
 }
-
-    
-
-    
