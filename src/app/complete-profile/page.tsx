@@ -22,9 +22,9 @@ import { supabase } from "@/lib/supabaseClient"
   CRITICAL ACTION REQUIRED: YOUR APP WILL NOT WORK UNTIL YOU DO THIS
   ================================================================================
 
-  The error "Could not find the table 'public.students'" means your database is missing
-  the required tables. I cannot create these for you. You MUST run the following SQL
-  script in your Supabase project to fix the application.
+  The update is failing because your database is missing the required tables and functions.
+  No code change can fix this. You MUST run the following SQL script in your Supabase project
+  to set up your database correctly.
 
   HOW TO FIX:
   1. Go to your Supabase project dashboard.
@@ -213,7 +213,7 @@ function CompleteProfileForm() {
       toast({
         variant: "destructive",
         title: "Update Failed",
-        description: error.message || "An unexpected error occurred.",
+        description: error.message || "An unexpected error occurred. Please check your database setup.",
       })
     } finally {
       setIsLoading(false)
@@ -298,5 +298,7 @@ export default function CompleteProfilePage() {
     </main>
   )
 }
+
+    
 
     

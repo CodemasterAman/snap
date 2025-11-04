@@ -18,9 +18,9 @@ import { supabase } from "@/lib/supabaseClient"
   CRITICAL ACTION REQUIRED: YOUR APP WILL NOT WORK UNTIL YOU DO THIS
   ================================================================================
 
-  The error "Could not find the table 'public.students'" means your database is missing
-  the required tables. I cannot create these for you. You MUST run the following SQL
-  script in your Supabase project to fix the application.
+  The update is failing because your database is missing the required tables and functions.
+  No code change can fix this. You MUST run the following SQL script in your Supabase project
+  to set up your database correctly.
 
   HOW TO FIX:
   1. Go to your Supabase project dashboard.
@@ -369,7 +369,7 @@ export default function DashboardPage() {
             setPhoneNumber(data.phone_number);
         }
     };
-    // fetchProfile(); // Temporarily disabled to prevent crash if table doesn't exist
+    fetchProfile();
 
   }, [user, router]);
 
@@ -447,7 +447,7 @@ export default function DashboardPage() {
         p_longitude: location.longitude,
         p_qr_id: qrPayload.qrId,
         p_scan_timestamp: new Date().toISOString(),
-        p_full_name: user.displayName.split(' ')[0], // Send only the first name
+        p_full_name: user.displayName, // Send the full name
         p_email: user.email
       };
 
@@ -468,7 +468,7 @@ export default function DashboardPage() {
 
     } catch (err: any) {
         console.error("Submission Error:", err);
-        setSubmissionResult({ message: err.message || "A network error occurred. Please try again.", success: false });
+        setSubmissionResult({ message: err.message || "An unexpected error occurred. Please check your database setup.", success: false });
         setAppState("SENT"); 
     }
   };
@@ -519,5 +519,7 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
 
     
