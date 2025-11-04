@@ -18,13 +18,13 @@ import { supabase } from "@/lib/supabaseClient"
 
 
 /*
-  ACTION REQUIRED: The `students` table does not exist in your Supabase project.
+  ACTION REQUIRED: The `students` table might not exist in your Supabase project.
 
-  Please go to your Supabase SQL Editor and run the following SQL to create the table.
-  This will resolve the "table not found" error.
+  Please go to your Supabase SQL Editor and run the following SQL to ensure the
+  table and functions your app needs are fully set up.
 
   -- 1. Create the students table
-  CREATE TABLE public.students (
+  CREATE TABLE IF NOT EXISTS public.students (
       id UUID PRIMARY KEY,
       registration_number TEXT UNIQUE,
       full_name TEXT,
@@ -203,3 +203,5 @@ export default function CompleteProfilePage() {
     </main>
   )
 }
+
+    

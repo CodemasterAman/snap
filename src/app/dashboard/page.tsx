@@ -14,13 +14,17 @@ import { supabase } from "@/lib/supabaseClient"
 
 
 /*
-  ACTION REQUIRED: The `submit_attendance` function does not exist in your Supabase project.
+  ACTION REQUIRED: The `submit_attendance` function in your Supabase project does not
+  accept the student's name and email.
 
   Please go to your Supabase SQL Editor and run the following SQL.
-  This will create the database function your app needs and resolve the "function not found" error.
+  This will update the database function and tables to correctly handle all student details.
+
+  -- Drop the old function if it exists, to avoid conflicts
+  DROP FUNCTION IF EXISTS public.submit_attendance(UUID, UUID, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TIMESTAMPTZ);
 
   -- 1. Create the students table
-  CREATE TABLE public.students (
+  CREATE TABLE IF NOT EXISTS public.students (
       id UUID PRIMARY KEY,
       registration_number TEXT UNIQUE,
       full_name TEXT,
@@ -31,7 +35,7 @@ import { supabase } from "@/lib/supabaseClient"
   );
 
   -- 2. Create the attendance sessions and records tables
-  CREATE TABLE public.attendance_sessions (
+  CREATE TABLE IF NOT EXISTS public.attendance_sessions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       qr_id TEXT NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -40,7 +44,7 @@ import { supabase } from "@/lib/supabaseClient"
       teacher_id TEXT
   );
 
-  CREATE TABLE public.attendance_records (
+  CREATE TABLE IF NOT EXISTS public.attendance_records (
       id BIGSERIAL PRIMARY KEY,
       session_id UUID REFERENCES public.attendance_sessions(id),
       student_id UUID REFERENCES public.students(id),
@@ -51,14 +55,16 @@ import { supabase } from "@/lib/supabaseClient"
       UNIQUE(session_id, student_id)
   );
 
-  -- 3. Create the submit_attendance function
+  -- 3. Create the NEW submit_attendance function that accepts name and email
   CREATE OR REPLACE FUNCTION public.submit_attendance(
       p_session_id UUID,
       p_student_id UUID,
       p_latitude DOUBLE PRECISION,
       p_longitude DOUBLE PRECISION,
       p_qr_id TEXT,
-      p_scan_timestamp TIMESTAMPTZ
+      p_scan_timestamp TIMESTAMPTZ,
+      p_full_name TEXT,
+      p_email TEXT
   )
   RETURNS TABLE(success BOOLEAN, message TEXT)
   LANGUAGE plpgsql
@@ -88,6 +94,11 @@ import { supabase } from "@/lib/supabaseClient"
           RETURN QUERY SELECT FALSE, 'Attendance already marked for this session.';
           RETURN;
       END IF;
+
+      -- Ensure student record exists
+      INSERT INTO public.students (id, full_name, email)
+      VALUES (p_student_id, p_full_name, p_email)
+      ON CONFLICT (id) DO NOTHING;
 
       -- Insert the new attendance record
       INSERT INTO public.attendance_records (session_id, student_id, scan_timestamp, latitude, longitude)
@@ -336,11 +347,6 @@ export default function DashboardPage() {
      }
     }
 
-    // This code is commented out because it will cause a crash if the 'students'
-    // table does not exist in your Supabase project. To re-enable this functionality,
-    // you must first create the 'students' table by running the SQL provided in the
-    // comment block at the top of this file.
-    /*
     const fetchProfile = async () => {
         if (!user) return;
         const { data, error } = await supabase
@@ -349,14 +355,13 @@ export default function DashboardPage() {
             .eq('id', user.uid)
             .single();
 
-        if (error) {
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
           console.error("Error fetching profile:", error.message)
         } else if (data) {
             setPhoneNumber(data.phone_number);
         }
     };
     fetchProfile();
-    */
 
   }, [user, router]);
 
@@ -413,8 +418,8 @@ export default function DashboardPage() {
   };
   
   const handleSendAttendance = async (qrData: string) => {
-    if (!location || !user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'User or location data is missing.' });
+    if (!location || !user || !user.displayName || !user.email) {
+        toast({ variant: 'destructive', title: 'Error', description: 'User profile is incomplete or location data is missing.' });
         resetState();
         return;
     }
@@ -433,7 +438,9 @@ export default function DashboardPage() {
         p_latitude: location.latitude,
         p_longitude: location.longitude,
         p_qr_id: qrPayload.qrId,
-        p_scan_timestamp: new Date().toISOString()
+        p_scan_timestamp: new Date().toISOString(),
+        p_full_name: user.displayName,
+        p_email: user.email
       };
 
       const { data, error } = await supabase.rpc('submit_attendance', payload);
@@ -504,6 +511,8 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
 
     
 
