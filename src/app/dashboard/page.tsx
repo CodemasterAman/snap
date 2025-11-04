@@ -424,7 +424,13 @@ export default function DashboardPage() {
         throw new Error(error.message)
       }
       
-      setSubmissionResult({ message: data.message, success: data.success });
+      if (!data || data.length === 0) {
+        throw new Error("No response from submission function.")
+      }
+      
+      const result = Array.isArray(data) ? data[0] : data;
+
+      setSubmissionResult({ message: result.message, success: result.success });
       setAppState("SENT");
 
     } catch (err: any) {
