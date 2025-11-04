@@ -65,15 +65,6 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
   const { toast } = useToast();
   const animationFrameId = useRef<number>();
 
-  const onScanSuccessRef = useRef(onScanSuccess);
-  const onScanErrorRef = useRef(onScanError);
-
-  useEffect(() => {
-    onScanSuccessRef.current = onScanSuccess;
-    onScanErrorRef.current = onScanError;
-  }, [onScanSuccess, onScanError]);
-
-
   const tick = useCallback(() => {
     if (sending) return;
 
@@ -94,30 +85,36 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
         if (code) {
           try {
             JSON.parse(code.data);
-            onScanSuccessRef.current(code.data);
+            onScanSuccess(code.data);
             return;
           } catch (e) {
-            onScanErrorRef.current("Invalid QR code format. Expected JSON.");
+            onScanError("Invalid QR code format. Expected JSON.");
             return;
           }
         }
       }
     }
     animationFrameId.current = requestAnimationFrame(tick);
-  }, [sending]);
+  }, [sending, onScanSuccess, onScanError]);
 
   useEffect(() => {
+    let stream: MediaStream | null = null;
     const getCameraPermission = async () => {
       try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           throw new Error("Camera not supported by this browser.");
         }
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         setHasCameraPermission(true);
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play();
+          videoRef.current.play().catch(e => {
+            console.error("Video play failed:", e);
+            if (e.name !== 'AbortError') {
+              onScanError("Could not start camera. Please check permissions.");
+            }
+          });
           animationFrameId.current = requestAnimationFrame(tick);
         }
       } catch (error) {
@@ -137,13 +134,15 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
+      if (stream) {
         stream.getTracks().forEach(track => track.stop());
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [tick]);
 
   return (
     <Card className="text-center shadow-lg">
@@ -153,7 +152,7 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
       </CardHeader>
       <CardContent>
         <div className="aspect-square bg-muted rounded-lg w-full flex items-center justify-center overflow-hidden relative">
-          <video ref={videoRef} className="w-full h-full object-cover" playsInline />
+          <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
           <canvas ref={canvasRef} style={{ display: 'none' }} />
           {hasCameraPermission ? (
             <>
@@ -376,5 +375,3 @@ export default function DashboardPage() {
     </main>
   )
 }
-
-    
