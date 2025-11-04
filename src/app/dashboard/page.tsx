@@ -142,7 +142,7 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick]);
+  }, []);
 
   return (
     <Card className="text-center shadow-lg">
@@ -375,3 +375,5 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
