@@ -19,6 +19,17 @@ import { supabase } from "@/lib/supabaseClient"
   Please go to your Supabase SQL Editor and run the following SQL.
   This will create the database function your app needs and resolve the "function not found" error.
 
+  -- 1. Create the students table
+  CREATE TABLE public.students (
+      id UUID PRIMARY KEY,
+      registration_number TEXT UNIQUE,
+      full_name TEXT,
+      email TEXT UNIQUE,
+      phone_number TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
   -- 2. Create the attendance sessions and records tables
   CREATE TABLE public.attendance_sessions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
