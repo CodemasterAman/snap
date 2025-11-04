@@ -114,7 +114,7 @@ function LoginForm() {
                   <FormControl>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input suppressHydrationWarning placeholder="your.id@university.edu" {...field} className="pl-10" />
+                      <Input suppressHydrationWarning placeholder="name.regno@muj.manipal.edu" {...field} className="pl-10" />
                     </div>
                   </FormControl>
                   <FormMessage />

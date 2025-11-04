@@ -49,6 +49,7 @@ function CompleteProfileForm() {
   const user = useUser()
   const router = useRouter()
   const [regNumber, setRegNumber] = useState("");
+  const [fullName, setFullName] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -68,13 +69,17 @@ function CompleteProfileForm() {
             router.push('/dashboard');
         }
         if (user.email) {
-            const match = user.email.match(/\.([a-zA-Z0-9]+)@/);
-            if (match && match[1]) {
-                setRegNumber(match[1].toUpperCase());
+            const emailParts = user.email.split('@')[0].split('.');
+            if (emailParts.length === 2) {
+                const name = emailParts[0].charAt(0).toUpperCase() + emailParts[0].slice(1);
+                const reg = emailParts[1].toUpperCase();
+                setFullName(name);
+                setRegNumber(reg);
+                form.setValue('fullName', name); // pre-fill the form
             }
         }
     }
-  }, [user, router])
+  }, [user, router, form])
 
   async function handleProfileUpdate(values: z.infer<typeof formSchema>) {
     if (!auth || !user || !user.email) {
@@ -153,7 +158,7 @@ function CompleteProfileForm() {
                     <FormControl>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="e.g. John Doe" {...field} className="pl-10" />
+                        <Input placeholder="e.g. John Doe" {...field} className="pl-10" disabled />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -203,5 +208,3 @@ export default function CompleteProfilePage() {
     </main>
   )
 }
-
-    

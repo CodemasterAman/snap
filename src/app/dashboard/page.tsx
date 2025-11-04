@@ -337,17 +337,16 @@ export default function DashboardPage() {
        return;
     }
     
-    const name = user.displayName ? user.displayName.split(' ')[0] : "Student";
-    setUserName(name);
+    setUserName(user.displayName.split(' ')[0]);
    
     if (user.email) {
-     const match = user.email.match(/\.([a-zA-Z0-9]+)@/);
-     if (match && match[1]) {
-       setRegNumber(match[1].toUpperCase());
+     const emailParts = user.email.split('@')[0].split('.');
+     if (emailParts.length === 2) {
+       const reg = emailParts[1].toUpperCase();
+       setRegNumber(reg);
      }
     }
 
-    /*
     const fetchProfile = async () => {
         if (!user) return;
         const { data, error } = await supabase
@@ -362,8 +361,7 @@ export default function DashboardPage() {
             setPhoneNumber(data.phone_number);
         }
     };
-    fetchProfile();
-    */
+    // fetchProfile(); // Temporarily disabled
 
   }, [user, router]);
 
@@ -479,7 +477,7 @@ export default function DashboardPage() {
   const resetState = () => {
     setLocation(null)
     setSubmissionResult(null)
-    setAppState("READY_TO_SCAN")
+    setAppState("READY_to_SCAN")
   }
   
   if (!user || !user.displayName) {
@@ -513,5 +511,3 @@ export default function DashboardPage() {
     </main>
   )
 }
-
-    
