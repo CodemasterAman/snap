@@ -1,7 +1,7 @@
 
 "use client"
 
-import React, { useState, useEffect, useRef, useCallback } from "react"
+import React, from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -420,15 +420,20 @@ export default function DashboardPage() {
       }
 
       setAppState("SENDING");
-
-      const { data, error } = await supabase.rpc('submit_attendance', {
+      
+      const payload = {
+        p_qr_id: qrPayload.qrId,
         p_session_id: qrPayload.sessionId,
         p_student_id: user.uid,
-        p_latitude: location.latitude,
-        p_longitude: location.longitude,
-        p_qr_id: qrPayload.qrId,
+        p_student_name: user.displayName || null,
+        p_student_email: user.email || null,
+        p_student_phone: phoneNumber || null,
+        p_student_latitude: location.latitude,
+        p_student_longitude: location.longitude,
         p_scan_timestamp: new Date().toISOString()
-      });
+      };
+
+      const { data, error } = await supabase.rpc('submit_attendance', payload);
 
 
       if (error) {
@@ -497,3 +502,5 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
