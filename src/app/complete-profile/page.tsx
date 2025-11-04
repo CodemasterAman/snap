@@ -16,6 +16,27 @@ import { useAuth, useUser } from "@/firebase"
 import { updateProfile } from "firebase/auth"
 import { supabase } from "@/lib/supabaseClient"
 
+
+/*
+  ACTION REQUIRED: The `students` table does not exist in your Supabase project.
+
+  Please go to your Supabase SQL Editor and run the following SQL to create the table.
+  This will resolve the "table not found" error.
+
+  -- 1. Create the students table
+  CREATE TABLE public.students (
+      id UUID PRIMARY KEY,
+      registration_number TEXT UNIQUE,
+      full_name TEXT,
+      email TEXT UNIQUE,
+      phone_number TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
+*/
+
+
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "Please enter your full name." }),
   phoneNumber: z.string().min(10, { message: "Please enter a valid phone number." }),

@@ -13,6 +13,86 @@ import jsQR from "jsqr"
 import { supabase } from "@/lib/supabaseClient"
 
 
+/*
+  ACTION REQUIRED: The `submit_attendance` function does not exist in your Supabase project.
+
+  Please go to your Supabase SQL Editor and run the following SQL.
+  This will create the database function your app needs and resolve the "function not found" error.
+
+  -- 2. Create the attendance sessions and records tables
+  CREATE TABLE public.attendance_sessions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      qr_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      class_id TEXT,
+      teacher_id TEXT
+  );
+
+  CREATE TABLE public.attendance_records (
+      id BIGSERIAL PRIMARY KEY,
+      session_id UUID REFERENCES public.attendance_sessions(id),
+      student_id UUID REFERENCES public.students(id),
+      scan_timestamp TIMESTAMPTZ NOT NULL,
+      latitude DOUBLE PRECISION,
+      longitude DOUBLE PRECISION,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(session_id, student_id)
+  );
+
+  -- 3. Create the submit_attendance function
+  CREATE OR REPLACE FUNCTION public.submit_attendance(
+      p_session_id UUID,
+      p_student_id UUID,
+      p_latitude DOUBLE PRECISION,
+      p_longitude DOUBLE PRECISION,
+      p_qr_id TEXT,
+      p_scan_timestamp TIMESTAMPTZ
+  )
+  RETURNS TABLE(success BOOLEAN, message TEXT)
+  LANGUAGE plpgsql
+  AS $$
+  DECLARE
+      v_session RECORD;
+      v_already_marked BOOLEAN;
+  BEGIN
+      -- Find the active session
+      SELECT * INTO v_session
+      FROM public.attendance_sessions
+      WHERE id = p_session_id AND qr_id = p_qr_id AND expires_at > NOW();
+
+      -- If no active session is found
+      IF NOT FOUND THEN
+          RETURN QUERY SELECT FALSE, 'Invalid or expired QR code.';
+          RETURN;
+      END IF;
+
+      -- Check if attendance is already marked for this session
+      SELECT EXISTS (
+          SELECT 1 FROM public.attendance_records
+          WHERE session_id = p_session_id AND student_id = p_student_id
+      ) INTO v_already_marked;
+
+      IF v_already_marked THEN
+          RETURN QUERY SELECT FALSE, 'Attendance already marked for this session.';
+          RETURN;
+      END IF;
+
+      -- Insert the new attendance record
+      INSERT INTO public.attendance_records (session_id, student_id, scan_timestamp, latitude, longitude)
+      VALUES (p_session_id, p_student_id, p_scan_timestamp, p_latitude, p_longitude);
+
+      RETURN QUERY SELECT TRUE, 'Attendance marked successfully!';
+
+  EXCEPTION
+      WHEN OTHERS THEN
+          RETURN QUERY SELECT FALSE, 'An unexpected database error occurred.';
+  END;
+  $$;
+
+*/
+
+
 type AppState = "READY_TO_SCAN" | "GETTING_LOCATION" | "SCANNING" | "SENDING" | "SENT"
 
 type LocationData = {
@@ -335,9 +415,6 @@ export default function DashboardPage() {
         p_student_id: user.uid,
         p_latitude: location.latitude,
         p_longitude: location.longitude,
-        p_full_name: user.displayName,
-        p_email: user.email,
-        p_phone_number: phoneNumber,
         p_qr_id: qrPayload.qrId,
         p_scan_timestamp: new Date().toISOString()
       });
