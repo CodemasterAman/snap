@@ -244,6 +244,8 @@ export default function DashboardPage() {
     if (!auth) return;
     try {
       await signOut(auth);
+      const cooldownUntil = new Date().getTime() + 10 * 60 * 1000; // 10 minutes
+      localStorage.setItem('logoutCooldownUntil', cooldownUntil.toString());
       router.push('/login');
     } catch (error) {
       toast({
