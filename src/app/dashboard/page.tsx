@@ -64,7 +64,7 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const { toast } = useToast();
   const animationFrameId = useRef<number>();
-  
+
   const onScanSuccessRef = useRef(onScanSuccess);
   const onScanErrorRef = useRef(onScanError);
 
@@ -143,7 +143,7 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast]);
+  }, []);
 
   return (
     <Card className="text-center shadow-lg">
@@ -376,3 +376,5 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
