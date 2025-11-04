@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { QrCode, MapPin, Clock, Send, CheckCircle, Loader2, LocateFixed, VideoOff, LogOut, Phone, AlertCircle } from "lucide-react"
+import { QrCode, MapPin, Send, CheckCircle, Loader2, LocateFixed, VideoOff, LogOut, AlertCircle, Phone } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth, useUser } from "@/firebase"
@@ -14,12 +14,12 @@ import jsQR from "jsqr"
 import { supabase } from "@/lib/supabaseClient"
 
 
-type AppState = "READY_TO_SCAN" | "SCANNING" | "SCANNED" | "SENDING" | "SENT"
+type AppState = "READY_TO_SCAN" | "GETTING_LOCATION" | "SCANNING" | "SENDING" | "SENT"
 
 type LocationData = {
   latitude: number;
   longitude: number;
-}
+} | null
 
 type QrPayload = {
     qrId: string;
@@ -30,12 +30,12 @@ type AttendanceData = {
   name: string
   regNumber: string
   phoneNumber: string | null
-  location: LocationData
-  timestamp: Date
+  scanTimestamp: Date
   qrPayload: QrPayload
 }
 
-const ReadyToScanComponent = ({ onScan, userName, regNumber }: { onScan: () => void, userName: string, regNumber: string }) => (
+
+const ReadyToScanComponent = ({ onScan, userName, regNumber, gettingLocation }: { onScan: () => void, userName: string, regNumber: string, gettingLocation: boolean }) => (
   <Card className="text-center shadow-lg">
     <CardHeader>
       <CardTitle className="font-headline text-primary">Welcome, {userName}</CardTitle>
@@ -43,9 +43,13 @@ const ReadyToScanComponent = ({ onScan, userName, regNumber }: { onScan: () => v
     </CardHeader>
     <CardContent>
       <p className="text-muted-foreground mb-6">Ready to mark your presence?</p>
-      <Button size="lg" className="w-full text-lg h-14" onClick={onScan}>
-        <QrCode className="mr-3 h-6 w-6" />
-        Mark My Presence
+      <Button size="lg" className="w-full text-lg h-14" onClick={onScan} disabled={gettingLocation}>
+        {gettingLocation ? (
+            <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+        ) : (
+            <QrCode className="mr-3 h-6 w-6" />
+        )}
+        {gettingLocation ? "Getting Location..." : "Mark My Presence"}
       </Button>
     </CardContent>
     <CardFooter className="justify-center text-xs text-muted-foreground">
@@ -54,7 +58,7 @@ const ReadyToScanComponent = ({ onScan, userName, regNumber }: { onScan: () => v
   </Card>
 )
 
-const ScanningComponent = ({ onScanSuccess, onScanError }: { onScanSuccess: (data: string) => void, onScanError: (message: string) => void }) => {
+const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSuccess: (data: string) => void, onScanError: (message: string) => void, sending: boolean }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
@@ -62,6 +66,8 @@ const ScanningComponent = ({ onScanSuccess, onScanError }: { onScanSuccess: (dat
   const animationFrameId = useRef<number>();
 
   const tick = useCallback(() => {
+    if (sending) return;
+
     if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -89,7 +95,7 @@ const ScanningComponent = ({ onScanSuccess, onScanError }: { onScanSuccess: (dat
       }
     }
     animationFrameId.current = requestAnimationFrame(tick);
-  }, [onScanSuccess, onScanError]);
+  }, [onScanSuccess, onScanError, sending]);
 
   useEffect(() => {
     const getCameraPermission = async () => {
@@ -155,75 +161,15 @@ const ScanningComponent = ({ onScanSuccess, onScanError }: { onScanSuccess: (dat
                 <p className="text-sm">Please enable camera access in your browser settings.</p>
             </div>
           )}
+           {sending && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white">
+                <Loader2 className="h-12 w-12 animate-spin mb-4" />
+                <p className="text-lg font-semibold">Sending Attendance...</p>
+              </div>
+            )}
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-
-const ScannedComponent = ({ data, onSend, onCancel, sending, onGetLocation }: { data: AttendanceData, onSend: () => void, onCancel: () => void, sending?: boolean, onGetLocation: () => void }) => {
-  const [formattedTimestamp, setFormattedTimestamp] = useState<string | null>(null);
-
-  useEffect(() => {
-    setFormattedTimestamp(new Date(data.timestamp).toLocaleString());
-  }, [data.timestamp]);
-
-  return (
-  <Card className="shadow-lg">
-    <CardHeader>
-      <CardTitle className="font-headline text-green-500">Scan Successful</CardTitle>
-      <CardDescription>Please verify and send your attendance data.</CardDescription>
-    </CardHeader>
-    <CardContent className="space-y-4">
-      <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-        <p className="font-semibold text-lg">{data.name}</p>
-        <p className="text-sm text-muted-foreground">{data.regNumber}</p>
-        {data.phoneNumber && (
-            <div className="flex items-center text-sm">
-                <Phone className="h-4 w-4 mr-2 text-primary" />
-                <span>{data.phoneNumber}</span>
-            </div>
-        )}
-        <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center">
-                <MapPin className="h-4 w-4 mr-2 text-primary" />
-                {data.location.latitude !== 0 ? (
-                    <span>{data.location.latitude.toFixed(4)}, {data.location.longitude.toFixed(4)}</span>
-                ) : (
-                    <span className="text-muted-foreground">Location not set</span>
-                )}
-            </div>
-            <Button variant="ghost" size="sm" onClick={onGetLocation}>
-                <LocateFixed className="mr-2 h-4 w-4"/> Get Location
-            </Button>
-        </div>
-        <div className="flex items-center text-sm">
-          <Clock className="h-4 w-4 mr-2 text-primary" />
-          <span>{formattedTimestamp || 'Loading...'}</span>
-        </div>
-         <div className="flex items-center text-sm pt-2 border-t border-border">
-          <QrCode className="h-4 w-4 mr-2 text-primary" />
-          <span className="font-mono text-xs truncate">Session: {data.qrPayload.sessionId}</span>
-        </div>
-      </div>
-       {data.location.latitude === 0 && (
-         <Alert variant="destructive">
-            <AlertTitle>Location Required</AlertTitle>
-            <AlertDescription>
-                Please provide your location before sending attendance.
-            </AlertDescription>
-         </Alert>
-       )}
-    </CardContent>
-    <CardFooter className="grid grid-cols-2 gap-4">
-        <Button variant="outline" onClick={onCancel} disabled={sending}>Scan Again</Button>
-        <Button onClick={onSend} disabled={sending || data.location.latitude === 0}>
-            {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-            {sending ? 'Sending...' : 'Send Attendance'}
-        </Button>
-    </CardFooter>
-  </Card>
   )
 }
 
@@ -259,7 +205,7 @@ function DashboardSkeleton() {
 
 export default function DashboardPage() {
   const [appState, setAppState] = useState<AppState>("READY_TO_SCAN")
-  const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null)
+  const [location, setLocation] = useState<LocationData>(null)
   const [submissionResult, setSubmissionResult] = useState<{message: string, success: boolean} | null>(null)
   const { toast } = useToast()
   const router = useRouter()
@@ -300,32 +246,29 @@ export default function DashboardPage() {
   };
 
 
-  const handleGetLocation = () => {
+  const handleMarkPresence = () => {
     if (navigator.geolocation) {
+        setAppState("GETTING_LOCATION");
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                setAttendanceData((prevData) => {
-                    if (!prevData) return null;
-                    return {
-                        ...prevData,
-                        location: {
-                            latitude: position.coords.latitude,
-                            longitude: position.coords.longitude,
-                        },
-                    };
+                setLocation({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
                 });
                 toast({
                   title: "Location Acquired",
                   description: "Your location has been successfully recorded.",
                 })
+                setAppState("SCANNING");
             },
             (error) => {
                 console.error("Error getting location:", error);
                 toast({
                     variant: "destructive",
                     title: "Location Error",
-                    description: "Could not retrieve your location. Please enable location services.",
+                    description: "Could not retrieve your location. Please enable location services and try again.",
                 });
+                resetState();
             }
         );
     } else {
@@ -337,19 +280,29 @@ export default function DashboardPage() {
     }
   };
   
-  const handleSendAttendance = async () => {
-    if (!attendanceData || !user) return;
-    setAppState("SENDING");
+  const handleSendAttendance = async (qrData: string) => {
+    if (!location || !user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'User or location data is missing.' });
+        resetState();
+        return;
+    }
 
     try {
+      const qrPayload: QrPayload = JSON.parse(qrData);
+      if (!qrPayload.qrId || !qrPayload.sessionId) {
+          throw new Error("QR code is missing 'qrId' or 'sessionId'.");
+      }
+
+      setAppState("SENDING");
+
       const { data, error } = await supabase.rpc('submit_attendance', {
-        p_qr_id: attendanceData.qrPayload.qrId,
-        p_session_id: attendanceData.qrPayload.sessionId,
-        p_student_name: attendanceData.name,
+        p_qr_id: qrPayload.qrId,
+        p_session_id: qrPayload.sessionId,
+        p_student_name: userName,
         p_student_email: user.email,
-        p_student_phone: attendanceData.phoneNumber,
-        p_student_latitude: attendanceData.location.latitude,
-        p_student_longitude: attendanceData.location.longitude,
+        p_student_phone: user.phoneNumber,
+        p_student_latitude: location.latitude,
+        p_student_longitude: location.longitude,
         p_scan_timestamp: new Date().toISOString()
       })
 
@@ -367,29 +320,6 @@ export default function DashboardPage() {
     }
   };
 
-
-  const handleScanSuccess = (qrData: string) => {
-     if (user) {
-        try {
-            const qrPayload: QrPayload = JSON.parse(qrData);
-            if (!qrPayload.qrId || !qrPayload.sessionId) {
-                throw new Error("QR code is missing 'qrId' or 'sessionId'.");
-            }
-            setAttendanceData({
-              name: userName,
-              regNumber: regNumber,
-              phoneNumber: user.phoneNumber,
-              location: { latitude: 0, longitude: 0 },
-              timestamp: new Date(),
-              qrPayload: qrPayload,
-            });
-            setAppState("SCANNED");
-        } catch (error: any) {
-            handleScanError(error.message || "Failed to parse QR code.");
-        }
-     }
-  };
-
   const handleScanError = (message: string) => {
     toast({
         variant: 'destructive',
@@ -399,9 +329,8 @@ export default function DashboardPage() {
     resetState();
   }
 
-
   const resetState = () => {
-    setAttendanceData(null)
+    setLocation(null)
     setSubmissionResult(null)
     setAppState("READY_TO_SCAN")
   }
@@ -412,11 +341,14 @@ export default function DashboardPage() {
 
   const renderContent = () => {
     switch (appState) {
-      case "READY_TO_SCAN": return <ReadyToScanComponent onScan={() => setAppState("SCANNING")} userName={userName} regNumber={regNumber} />
-      case "SCANNING": return <ScanningComponent onScanSuccess={handleScanSuccess} onScanError={handleScanError} />
-      case "SCANNED": return attendanceData && <ScannedComponent data={attendanceData} onSend={handleSendAttendance} onCancel={resetState} onGetLocation={handleGetLocation} />
-      case "SENDING": return attendanceData && <ScannedComponent data={attendanceData} onSend={() => {}} onCancel={() => {}} sending onGetLocation={() => {}} />
-      case "SENT": return submissionResult && <SentComponent onDone={resetState} message={submissionResult.message} success={submissionResult.success}/>
+      case "READY_TO_SCAN": 
+      case "GETTING_LOCATION":
+        return <ReadyToScanComponent onScan={handleMarkPresence} userName={userName} regNumber={regNumber} gettingLocation={appState === 'GETTING_LOCATION'} />
+      case "SCANNING":
+      case "SENDING":
+        return <ScanningComponent onScanSuccess={handleSendAttendance} onScanError={handleScanError} sending={appState === 'SENDING'} />
+      case "SENT": 
+        return submissionResult && <SentComponent onDone={resetState} message={submissionResult.message} success={submissionResult.success}/>
       default: return null
     }
   }
