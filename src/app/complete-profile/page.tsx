@@ -18,10 +18,22 @@ import { supabase } from "@/lib/supabaseClient"
 
 
 /*
-  ACTION REQUIRED: The `students` table might not exist in your Supabase project.
+  ================================================================================
+  CRITICAL ACTION REQUIRED: YOUR APP WILL NOT WORK UNTIL YOU DO THIS
+  ================================================================================
 
-  Please go to your Supabase SQL Editor and run the following SQL to ensure the
-  table and functions your app needs are fully set up.
+  The error "Could not find the table 'public.students'" means your database is missing
+  the required tables. I cannot create these for you. You MUST run the following SQL
+  script in your Supabase project to fix the application.
+
+  HOW TO FIX:
+  1. Go to your Supabase project dashboard.
+  2. In the left menu, click on "SQL Editor".
+  3. Click "New query".
+  4. Copy the entire SQL script below and paste it into the editor.
+  5. Click the "RUN" button.
+
+  --- COPY THE SQL BELOW THIS LINE ---
 
   -- 1. Create the students table
   CREATE TABLE IF NOT EXISTS public.students (
@@ -33,6 +45,84 @@ import { supabase } from "@/lib/supabaseClient"
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
   );
+
+  -- 2. Create the attendance sessions and records tables
+  CREATE TABLE IF NOT EXISTS public.attendance_sessions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      qr_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      class_id TEXT,
+      teacher_id TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS public.attendance_records (
+      id BIGSERIAL PRIMARY KEY,
+      session_id UUID REFERENCES public.attendance_sessions(id),
+      student_id UUID REFERENCES public.students(id),
+      scan_timestamp TIMESTAMPTZ NOT NULL,
+      latitude DOUBLE PRECISION,
+      longitude DOUBLE PRECISION,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(session_id, student_id)
+  );
+
+  -- 3. Create the NEW submit_attendance function that accepts name and email
+  CREATE OR REPLACE FUNCTION public.submit_attendance(
+      p_session_id UUID,
+      p_student_id UUID,
+      p_latitude DOUBLE PRECISION,
+      p_longitude DOUBLE PRECISION,
+      p_qr_id TEXT,
+      p_scan_timestamp TIMESTAMPTZ,
+      p_full_name TEXT,
+      p_email TEXT
+  )
+  RETURNS TABLE(success BOOLEAN, message TEXT)
+  LANGUAGE plpgsql
+  AS $$
+  DECLARE
+      v_session RECORD;
+      v_already_marked BOOLEAN;
+  BEGIN
+      -- Find the active session
+      SELECT * INTO v_session
+      FROM public.attendance_sessions
+      WHERE id = p_session_id AND qr_id = p_qr_id AND expires_at > NOW();
+
+      -- If no active session is found
+      IF NOT FOUND THEN
+          RETURN QUERY SELECT FALSE, 'Invalid or expired QR code.';
+          RETURN;
+      END IF;
+
+      -- Check if attendance is already marked for this session
+      SELECT EXISTS (
+          SELECT 1 FROM public.attendance_records
+          WHERE session_id = p_session_id AND student_id = p_student_id
+      ) INTO v_already_marked;
+
+      IF v_already_marked THEN
+          RETURN QUERY SELECT FALSE, 'Attendance already marked for this session.';
+          RETURN;
+      END IF;
+
+      -- Ensure student record exists
+      INSERT INTO public.students (id, full_name, email)
+      VALUES (p_student_id, p_full_name, p_email)
+      ON CONFLICT (id) DO NOTHING;
+
+      -- Insert the new attendance record
+      INSERT INTO public.attendance_records (session_id, student_id, scan_timestamp, latitude, longitude)
+      VALUES (p_session_id, p_student_id, p_scan_timestamp, p_latitude, p_longitude);
+
+      RETURN QUERY SELECT TRUE, 'Attendance marked successfully!';
+
+  EXCEPTION
+      WHEN OTHERS THEN
+          RETURN QUERY SELECT FALSE, 'An unexpected database error occurred.';
+  END;
+  $$;
 
 */
 
@@ -208,3 +298,5 @@ export default function CompleteProfilePage() {
     </main>
   )
 }
+
+    

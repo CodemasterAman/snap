@@ -14,14 +14,22 @@ import { supabase } from "@/lib/supabaseClient"
 
 
 /*
-  ACTION REQUIRED: The `submit_attendance` function in your Supabase project does not
-  accept the student's name and email.
+  ================================================================================
+  CRITICAL ACTION REQUIRED: YOUR APP WILL NOT WORK UNTIL YOU DO THIS
+  ================================================================================
 
-  Please go to your Supabase SQL Editor and run the following SQL.
-  This will update the database function and tables to correctly handle all student details.
+  The error "Could not find the table 'public.students'" means your database is missing
+  the required tables. I cannot create these for you. You MUST run the following SQL
+  script in your Supabase project to fix the application.
 
-  -- Drop the old function if it exists, to avoid conflicts
-  DROP FUNCTION IF EXISTS public.submit_attendance(UUID, UUID, DOUBLE PRECISION, DOUBLE PRECISION, TEXT, TIMESTAMPTZ);
+  HOW TO FIX:
+  1. Go to your Supabase project dashboard.
+  2. In the left menu, click on "SQL Editor".
+  3. Click "New query".
+  4. Copy the entire SQL script below and paste it into the editor.
+  5. Click the "RUN" button.
+
+  --- COPY THE SQL BELOW THIS LINE ---
 
   -- 1. Create the students table
   CREATE TABLE IF NOT EXISTS public.students (
@@ -361,7 +369,7 @@ export default function DashboardPage() {
             setPhoneNumber(data.phone_number);
         }
     };
-    // fetchProfile(); // Temporarily disabled
+    // fetchProfile(); // Temporarily disabled to prevent crash if table doesn't exist
 
   }, [user, router]);
 
@@ -477,7 +485,7 @@ export default function DashboardPage() {
   const resetState = () => {
     setLocation(null)
     setSubmissionResult(null)
-    setAppState("READY_to_SCAN")
+    setAppState("READY_TO_SCAN")
   }
   
   if (!user || !user.displayName) {
@@ -511,3 +519,5 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
