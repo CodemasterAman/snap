@@ -245,10 +245,10 @@ export default function DashboardPage() {
      }
     }
 
-    // Fetch phone number from profiles table
+    // Fetch phone number from students table
     const fetchProfile = async () => {
         const { data, error } = await supabase
-            .from('profiles')
+            .from('students')
             .select('phone_number')
             .eq('id', user.uid)
             .single();
@@ -403,6 +403,3 @@ export default function DashboardPage() {
     </main>
   )
 }
-
-    
-    

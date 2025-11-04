@@ -73,7 +73,7 @@ function CompleteProfileForm() {
 
       // 2. Save details to Supabase database
       const { error: supabaseError } = await supabase
-        .from('profiles')
+        .from('students')
         .upsert({ 
             id: user.uid, 
             full_name: values.fullName,
