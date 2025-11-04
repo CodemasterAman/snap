@@ -314,7 +314,7 @@ export default function DashboardPage() {
   };
   
   const handleSendAttendance = async (qrData: string) => {
-    if (!location || !user || !user.email) {
+    if (!location || !user || !user.email || !user.displayName) {
         toast({ variant: 'destructive', title: 'Error', description: 'User or location data is missing.' });
         resetState();
         return;
