@@ -253,7 +253,9 @@ export default function DashboardPage() {
             .eq('id', user.uid)
             .single();
 
-        if (data) {
+        if (error) {
+          console.error("Error fetching profile:", error.message)
+        } else if (data) {
             setPhoneNumber(data.phone_number);
         }
     };
@@ -402,4 +404,5 @@ export default function DashboardPage() {
   )
 }
 
+    
     
