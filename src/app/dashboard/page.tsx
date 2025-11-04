@@ -329,14 +329,14 @@ export default function DashboardPage() {
       setAppState("SENDING");
 
       const { data, error } = await supabase.rpc('submit_attendance', {
-        p_qr_id: qrPayload.qrId,
         p_session_id: qrPayload.sessionId,
         p_student_id: user.uid,
+        p_latitude: location.latitude,
+        p_longitude: location.longitude,
         p_full_name: user.displayName,
         p_email: user.email,
         p_phone_number: phoneNumber,
-        p_latitude: location.latitude,
-        p_longitude: location.longitude,
+        p_qr_id: qrPayload.qrId,
         p_scan_timestamp: new Date().toISOString()
       });
 
