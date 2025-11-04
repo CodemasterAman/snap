@@ -334,9 +334,9 @@ export default function DashboardPage() {
         p_qr_id: qrPayload.qrId,
         p_session_id: qrPayload.sessionId,
         p_student_id: user.uid,
-        p_student_name: user.displayName, // Send full name
+        p_student_name: user.displayName,
         p_student_email: user.email,
-        p_student_phone: phoneNumber, // Use phone number from state
+        p_student_phone: phoneNumber,
         p_student_latitude: location.latitude,
         p_student_longitude: location.longitude,
         p_scan_timestamp: new Date().toISOString()
