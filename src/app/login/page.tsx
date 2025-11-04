@@ -67,22 +67,12 @@ function LoginForm() {
         const authError = error as AuthError;
         if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-credential') {
             try {
-                const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-                const user = userCredential.user;
-                
-                const nameFromEmail = values.email.split('@')[0].split('.')[0];
-                const capitalizedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
-                
-                await updateProfile(user, {
-                  displayName: capitalizedName,
-                });
-
+                await createUserWithEmailAndPassword(auth, values.email, values.password);
                 toast({
                     title: "Account Created",
-                    description: "Welcome! Your account has been successfully created.",
+                    description: "Welcome! Please complete your profile.",
                 });
-                localStorage.removeItem('logoutCooldownUntil');
-                router.push('/dashboard');
+                router.push('/complete-profile');
             } catch (signUpError) {
                 const signUpAuthError = signUpError as AuthError;
                  if (signUpAuthError.code === 'auth/email-already-in-use') {
