@@ -106,7 +106,13 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
           videoElement.onloadedmetadata = () => {
             videoElement.play().catch(e => {
               console.error("Video play failed:", e);
-              onScanError("Could not start camera.");
+              // Do not call onScanError here as it might trigger state changes causing loops.
+              // Toast is safer.
+              toast({
+                variant: 'destructive',
+                title: 'Camera Error',
+                description: 'Could not start camera. Please refresh the page.',
+              });
             });
             animationFrameId.current = requestAnimationFrame(tick);
           };
@@ -114,11 +120,7 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
       } catch (error) {
         console.error('Error accessing camera:', error);
         setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: 'Please enable camera permissions in your browser settings to scan the QR code.',
-        });
+        onScanError('Camera permission denied. Please enable it in your browser settings.');
       }
     };
 
@@ -138,7 +140,7 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick]);
+  }, []);
 
   return (
     <Card className="text-center shadow-lg">
@@ -218,25 +220,47 @@ export default function DashboardPage() {
   const user = useUser()
   const [userName, setUserName] = useState("Student");
   const [regNumber, setRegNumber] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user === null) { // User is not loaded yet or not logged in
+    if (user === null) { // Still loading
+      return;
+    } 
+    if (!user) { // Not logged in
       router.push("/login");
-    } else if (user) { // User is loaded
-       if (!user.displayName) { // New user, profile not complete
-           router.push('/complete-profile');
-           return;
-       }
-       const name = user.displayName ? user.displayName.split(' ')[0] : "Student";
-       setUserName(name);
-       
-       if (user.email) {
-         const match = user.email.match(/\.([a-zA-Z0-9]+)@/);
-         if (match && match[1]) {
-           setRegNumber(match[1].toUpperCase());
-         }
-       }
+      return;
     }
+
+    // User is logged in
+    if (!user.displayName) { // New user, profile not complete
+       router.push('/complete-profile');
+       return;
+    }
+    
+    const name = user.displayName ? user.displayName.split(' ')[0] : "Student";
+    setUserName(name);
+   
+    if (user.email) {
+     const match = user.email.match(/\.([a-zA-Z0-9]+)@/);
+     if (match && match[1]) {
+       setRegNumber(match[1].toUpperCase());
+     }
+    }
+
+    // Fetch phone number from profiles table
+    const fetchProfile = async () => {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('phone_number')
+            .eq('id', user.uid)
+            .single();
+
+        if (data) {
+            setPhoneNumber(data.phone_number);
+        }
+    };
+    fetchProfile();
+
   }, [user, router]);
 
 
@@ -310,9 +334,9 @@ export default function DashboardPage() {
         p_qr_id: qrPayload.qrId,
         p_session_id: qrPayload.sessionId,
         p_student_id: user.uid,
-        p_student_name: userName,
+        p_student_name: user.displayName, // Send full name
         p_student_email: user.email,
-        p_student_phone: user.phoneNumber, // Note: phoneNumber is not available by default on user object
+        p_student_phone: phoneNumber, // Use phone number from state
         p_student_latitude: location.latitude,
         p_student_longitude: location.longitude,
         p_scan_timestamp: new Date().toISOString()

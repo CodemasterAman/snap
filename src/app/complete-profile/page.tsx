@@ -38,7 +38,9 @@ function CompleteProfileForm() {
   })
 
   useEffect(() => {
-    if (!user) {
+    if (user === null) {
+        // Still loading or not logged in, wait.
+    } else if (!user) {
       router.push("/login")
     } else if (user) {
         if (user.displayName) { // If profile is already complete, redirect to dashboard
@@ -77,7 +79,7 @@ function CompleteProfileForm() {
             full_name: values.fullName,
             phone_number: values.phoneNumber,
             email: user.email,
-            registration_number: regNumber,
+            registration_number: regNumber, // Pass the detected reg number
             updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
 
