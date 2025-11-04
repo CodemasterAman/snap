@@ -336,21 +336,22 @@ export default function DashboardPage() {
      }
     }
 
-    // Fetch phone number from students table
-    const fetchProfile = async () => {
-        const { data, error } = await supabase
-            .from('students')
-            .select('phone_number')
-            .eq('id', user.uid)
-            .single();
+    // REMOVED to prevent crash. The 'students' table does not exist in the database.
+    // To re-enable phone number functionality, you must create the table in Supabase.
+    // const fetchProfile = async () => {
+    //     const { data, error } = await supabase
+    //         .from('students')
+    //         .select('phone_number')
+    //         .eq('id', user.uid)
+    //         .single();
 
-        if (error) {
-          console.error("Error fetching profile:", error.message)
-        } else if (data) {
-            setPhoneNumber(data.phone_number);
-        }
-    };
-    fetchProfile();
+    //     if (error) {
+    //       console.error("Error fetching profile:", error.message)
+    //     } else if (data) {
+    //         setPhoneNumber(data.phone_number);
+    //     }
+    // };
+    // fetchProfile();
 
   }, [user, router]);
 
