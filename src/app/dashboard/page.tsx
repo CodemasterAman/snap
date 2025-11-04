@@ -336,22 +336,27 @@ export default function DashboardPage() {
      }
     }
 
-    // REMOVED to prevent crash. The 'students' table does not exist in the database.
-    // To re-enable phone number functionality, you must create the table in Supabase.
-    // const fetchProfile = async () => {
-    //     const { data, error } = await supabase
-    //         .from('students')
-    //         .select('phone_number')
-    //         .eq('id', user.uid)
-    //         .single();
+    // This code is commented out because it will cause a crash if the 'students'
+    // table does not exist in your Supabase project. To re-enable this functionality,
+    // you must first create the 'students' table by running the SQL provided in the
+    // comment block at the top of this file.
+    /*
+    const fetchProfile = async () => {
+        if (!user) return;
+        const { data, error } = await supabase
+            .from('students')
+            .select('phone_number')
+            .eq('id', user.uid)
+            .single();
 
-    //     if (error) {
-    //       console.error("Error fetching profile:", error.message)
-    //     } else if (data) {
-    //         setPhoneNumber(data.phone_number);
-    //     }
-    // };
-    // fetchProfile();
+        if (error) {
+          console.error("Error fetching profile:", error.message)
+        } else if (data) {
+            setPhoneNumber(data.phone_number);
+        }
+    };
+    fetchProfile();
+    */
 
   }, [user, router]);
 
@@ -408,7 +413,7 @@ export default function DashboardPage() {
   };
   
   const handleSendAttendance = async (qrData: string) => {
-    if (!location || !user || !user.email || !user.displayName) {
+    if (!location || !user) {
         toast({ variant: 'destructive', title: 'Error', description: 'User or location data is missing.' });
         resetState();
         return;
@@ -423,19 +428,15 @@ export default function DashboardPage() {
       setAppState("SENDING");
       
       const payload = {
-        p_qr_id: qrPayload.qrId,
         p_session_id: qrPayload.sessionId,
         p_student_id: user.uid,
-        p_student_name: user.displayName || null,
-        p_student_email: user.email || null,
-        p_student_phone: phoneNumber || null,
-        p_student_latitude: location.latitude,
-        p_student_longitude: location.longitude,
+        p_latitude: location.latitude,
+        p_longitude: location.longitude,
+        p_qr_id: qrPayload.qrId,
         p_scan_timestamp: new Date().toISOString()
       };
 
       const { data, error } = await supabase.rpc('submit_attendance', payload);
-
 
       if (error) {
         throw new Error(error.message)
@@ -503,6 +504,8 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
 
     
 
