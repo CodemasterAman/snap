@@ -106,13 +106,7 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
           videoElement.onloadedmetadata = () => {
             videoElement.play().catch(e => {
               console.error("Video play failed:", e);
-              // Do not call onScanError here as it might trigger state changes causing loops.
-              // Toast is safer.
-              toast({
-                variant: 'destructive',
-                title: 'Camera Error',
-                description: 'Could not start camera. Please refresh the page.',
-              });
+              onScanError('Could not start camera. Please refresh the page and grant permission.');
             });
             animationFrameId.current = requestAnimationFrame(tick);
           };
@@ -140,7 +134,7 @@ const ScanningComponent = ({ onScanSuccess, onScanError, sending }: { onScanSucc
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onScanError]);
 
   return (
     <Card className="text-center shadow-lg">
@@ -334,11 +328,11 @@ export default function DashboardPage() {
         p_qr_id: qrPayload.qrId,
         p_session_id: qrPayload.sessionId,
         p_student_id: user.uid,
-        p_student_name: user.displayName,
-        p_student_email: user.email,
-        p_student_phone: phoneNumber,
-        p_student_latitude: location.latitude,
-        p_student_longitude: location.longitude,
+        p_full_name: user.displayName,
+        p_email: user.email,
+        p_phone_number: phoneNumber,
+        p_latitude: location.latitude,
+        p_longitude: location.longitude,
         p_scan_timestamp: new Date().toISOString()
       })
 
@@ -402,3 +396,5 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
