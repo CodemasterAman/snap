@@ -187,8 +187,7 @@ function CompleteProfileForm() {
         displayName: values.fullName,
       });
 
-      // 2. Save details to Supabase database (Temporarily disabled to prevent crash)
-      /*
+      // 2. Save details to Supabase database
       const { error: supabaseError } = await supabase
         .from('students')
         .upsert({ 
@@ -203,7 +202,6 @@ function CompleteProfileForm() {
       if (supabaseError) {
         throw new Error(supabaseError.message);
       }
-      */
 
 
       toast({
