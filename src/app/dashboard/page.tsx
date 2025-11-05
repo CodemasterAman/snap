@@ -450,7 +450,7 @@ export default function DashboardPage() {
         p_longitude: location.longitude,
         p_qr_id: qrPayload.qrId,
         p_scan_timestamp: new Date().toISOString(),
-        p_full_name: user.displayName, // Send the full name
+        p_full_name: user.displayName.split(' ')[0], // Send the first name
         p_email: user.email
       };
 
@@ -522,3 +522,5 @@ export default function DashboardPage() {
     </main>
   )
 }
+
+    
