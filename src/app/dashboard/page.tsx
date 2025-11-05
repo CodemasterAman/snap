@@ -245,21 +245,21 @@ export default function DashboardPage() {
      }
     }
     
-    const fetchProfile = async () => {
-        if (!user) return;
-        const { data, error } = await supabase
-            .from('students')
-            .select('phone_number')
-            .eq('id', user.uid)
-            .single();
+    // const fetchProfile = async () => {
+    //     if (!user) return;
+    //     const { data, error } = await supabase
+    //         .from('students')
+    //         .select('phone_number')
+    //         .eq('id', user.uid)
+    //         .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-          console.error("Error fetching profile:", error.message)
-        } else if (data) {
-            setPhoneNumber(data.phone_number);
-        }
-    };
-    fetchProfile();
+    //     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+    //       console.error("Error fetching profile:", error.message)
+    //     } else if (data) {
+    //         setPhoneNumber(data.phone_number);
+    //     }
+    // };
+    // fetchProfile();
 
   }, [user, router]);
 
