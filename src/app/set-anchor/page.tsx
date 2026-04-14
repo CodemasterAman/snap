@@ -1,9 +1,9 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
-export default function SetAnchorPage() {
+function SetAnchorContent() {
   const params = useSearchParams()
   const sessionId = params.get("session_id")
   const [status, setStatus] = useState("Getting your location...")
@@ -44,5 +44,13 @@ export default function SetAnchorPage() {
         <p style={{ fontSize: 16, color: "#444", whiteSpace: "pre-line" }}>{status}</p>
       </div>
     </main>
+  )
+}
+
+export default function SetAnchorPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center" }}>Loading...</div>}>
+      <SetAnchorContent />
+    </Suspense>
   )
 }
