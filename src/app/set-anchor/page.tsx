@@ -9,11 +9,13 @@ function SetAnchorContent() {
   const [status, setStatus] = useState("Getting your location...")
 
   useEffect(() => {
-    if (!sessionId) { setStatus("Invalid link."); return }
+    if (!sessionId) { setStatus("❌ Invalid link — no session ID."); return }
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const { error } = await supabase
+        setStatus(`Got GPS (±${Math.round(position.coords.accuracy)}m). Saving to database...`)
+
+        const { data, error } = await supabase
           .from("sessions")
           .update({
             teacher_latitude: position.coords.latitude.toString(),
@@ -21,14 +23,23 @@ function SetAnchorContent() {
             teacher_accuracy: position.coords.accuracy
           })
           .eq("session_id", sessionId)
+          .select()                       // ← KEY CHANGE: returns updated rows
 
         if (error) {
-          setStatus("Failed to update location. Try again.")
-        } else {
-          setStatus(`✅ Location set successfully!\nAccuracy: ±${Math.round(position.coords.accuracy)}m\n\nYou can close this page.`)
+          setStatus(`❌ Database error: ${error.message}`)
+          return
         }
+
+        if (!data || data.length === 0) {
+          // Update returned 0 rows — RLS blocked it OR session not found
+          setStatus(`❌ Could not update session.\n\nThe session may have ended, or the database is blocking the update.\n\nSession ID: ${sessionId}`)
+          return
+        }
+
+        // Real success
+        setStatus(`✅ Location saved to database!\n\nAccuracy: ±${Math.round(position.coords.accuracy)}m\nLat: ${position.coords.latitude.toFixed(6)}\nLng: ${position.coords.longitude.toFixed(6)}\n\nYou can close this page.`)
       },
-      () => setStatus("❌ Location access denied. Please allow GPS and try again."),
+      (err) => setStatus(`❌ Location access denied: ${err.message}\n\nAllow GPS in browser settings and reload.`),
       { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
     )
   }, [sessionId])
